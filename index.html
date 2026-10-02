@@ -1,0 +1,2027 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>SCIM PATCH Evaluator</title>
+<meta name="description" content="Paste a SCIM User or Group and a PATCH request and see the resource after every operation under a literal reading of RFC 7644, beside what Microsoft Entra's documented request shapes intend. Runs entirely in your browser.">
+<link rel="canonical" href="https://0xelitesystem.github.io/scim-patch-evaluator/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="SCIM PATCH Evaluator">
+<meta property="og:description" content="Paste a SCIM User or Group and a PATCH request and see the resource after every operation under a literal reading of RFC 7644, beside what Microsoft Entra's documented request shapes intend.">
+<meta property="og:url" content="https://0xelitesystem.github.io/scim-patch-evaluator/">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"SCIM PATCH Evaluator","applicationCategory":"DeveloperApplication","operatingSystem":"Any (browser)","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"url":"https://0xelitesystem.github.io/scim-patch-evaluator/","author":{"@type":"Person","name":"0xelitesystem","url":"https://elitesystem.ai"}}
+</script>
+<script>
+/* Apply a remembered light or dark choice before first paint. */
+(function () {
+  var KEY = "theme";
+  try {
+    var t = localStorage.getItem(KEY);
+    if (t === "dark" || t === "light") { document.documentElement.setAttribute("data-theme", t); }
+  } catch (e) {}
+})();
+</script>
+<style>
+/* Palette verified by math (WCAG 2.x relative luminance), every text token
+   against every background token, both themes. Zero pairs below 4.5:1.
+
+   LIGHT, on --bg #e8ebef / --panel #ffffff / --code #dcdfe4
+     --ink       #0a0a0a  16.56  19.80  14.82
+     --ink-soft  #3d444d   8.24   9.85   7.37
+     --accent    #2d6b00   5.46   6.53   4.89
+     --ok        #1a6127   6.31   7.55   5.65
+     --warn      #8a4d00   5.59   6.68   5.00
+     --err       #a82d14   5.76   6.88   5.15
+     --info      #0f4f7a   7.26   8.68   6.50
+   DARK, on --bg #0a0a0a / --panel #141414 / --code #1c1c1c
+     --ink       #e8ebef  16.56  15.41  14.25
+     --ink-soft  #b9c0c9  10.79  10.04   9.29
+     --accent    #d4ff3a  17.12  15.94  14.74
+     --ok        #7ee08a  12.18  11.33  10.48
+     --warn      #f0c674  12.29  11.44  10.58
+     --err       #ff9b8a   9.72   9.04   8.36
+     --info      #8fd3ff  12.19  11.34  10.49
+   Primary button: --bg text on --accent fill, 5.46:1 light, 17.12:1 dark.
+   --muted is a BORDER token only (3:1 non-text: 4.55 light worst, 5.83 dark
+   worst). It is never a text colour. */
+:root {
+  color-scheme: light;
+  --bg: #e8ebef;
+  --panel: #ffffff;
+  --code: #dcdfe4;
+  --ink: #0a0a0a;
+  --ink-soft: #3d444d;
+  --accent: #2d6b00;
+  --ok: #1a6127;
+  --warn: #8a4d00;
+  --err: #a82d14;
+  --info: #0f4f7a;
+  --muted: #5b636e;
+  --mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0a0a0a;
+    --panel: #141414;
+    --code: #1c1c1c;
+    --ink: #e8ebef;
+    --ink-soft: #b9c0c9;
+    --accent: #d4ff3a;
+    --ok: #7ee08a;
+    --warn: #f0c674;
+    --err: #ff9b8a;
+    --info: #8fd3ff;
+    --muted: #8f98a3;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0a0a0a;
+  --panel: #141414;
+  --code: #1c1c1c;
+  --ink: #e8ebef;
+  --ink-soft: #b9c0c9;
+  --accent: #d4ff3a;
+  --ok: #7ee08a;
+  --warn: #f0c674;
+  --err: #ff9b8a;
+  --info: #8fd3ff;
+  --muted: #8f98a3;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { margin: 0; padding: 0 1rem 4rem; background: var(--bg); color: var(--ink); font: 16px/1.55 var(--sans); }
+.wrap { max-width: 76rem; margin: 0 auto; }
+header.top { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-start; justify-content: space-between; padding: 2rem 0 1rem; border-bottom: 1px solid var(--muted); }
+header.top .titles { flex: 1 1 30rem; min-width: 0; }
+h1 { font-size: 1.7rem; line-height: 1.2; margin: 0 0 .35rem; }
+h2 { font-size: 1.25rem; margin: 2.2rem 0 .6rem; }
+h3 { font-size: 1.05rem; margin: 1.2rem 0 .4rem; }
+h4 { font-size: .98rem; margin: .2rem 0 .4rem; }
+p { margin: .6rem 0; }
+.lede { color: var(--ink-soft); margin: 0; }
+.note { color: var(--ink-soft); font-size: .92rem; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus-visible, [tabindex="0"]:focus-visible {
+  outline: 3px solid var(--accent); outline-offset: 2px;
+}
+code, kbd { font-family: var(--mono); font-size: .92em; overflow-wrap: anywhere; }
+.panel { background: var(--panel); border: 1px solid var(--muted); border-radius: 6px; padding: 1rem; margin: 1rem 0; }
+.grid { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 60rem) { .grid.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+label { display: block; font-weight: 600; margin: .4rem 0 .25rem; }
+label .hint { font-weight: 400; color: var(--ink-soft); font-size: .88rem; }
+label.inline { display: inline-flex; gap: .45rem; align-items: center; font-weight: 600; margin: 0; }
+textarea, select { width: 100%; font-family: var(--mono); font-size: .88rem; color: var(--ink); background: var(--code); border: 1px solid var(--muted); border-radius: 4px; padding: .5rem; tab-size: 2; }
+textarea { resize: vertical; min-height: 16rem; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+select { font-family: var(--sans); width: auto; max-width: 100%; }
+input[type="checkbox"] { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); }
+button { font: inherit; font-weight: 600; color: var(--ink); background: var(--code); border: 1px solid var(--muted); border-radius: 4px; padding: .45rem .9rem; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.row { display: flex; flex-wrap: wrap; gap: .7rem; align-items: center; margin-top: .8rem; }
+pre.json, pre.box { margin: .3rem 0 .6rem; background: var(--code); color: var(--ink); border: 1px solid var(--muted); border-radius: 4px; padding: .55rem .65rem; overflow-x: auto; font-family: var(--mono); font-size: .82rem; line-height: 1.45; white-space: pre; tab-size: 2; max-height: 28rem; overflow-y: auto; }
+.badge { display: inline-block; font-family: var(--mono); font-size: .76rem; font-weight: 700; border: 1px solid currentColor; border-radius: 3px; padding: 0 .35rem; margin-right: .4rem; vertical-align: .05em; white-space: nowrap; }
+.b-ok { color: var(--ok); } .b-err { color: var(--err); } .b-warn { color: var(--warn); } .b-info { color: var(--info); } .b-soft { color: var(--ink-soft); }
+.verdict { border-left: 4px solid var(--muted); padding: .2rem 0 .2rem .9rem; margin: .6rem 0 1rem; }
+.verdict.ok { border-left-color: var(--ok); } .verdict.err { border-left-color: var(--err); } .verdict.warn { border-left-color: var(--warn); }
+.verdict .big { font-size: 1.1rem; font-weight: 700; margin: 0 0 .3rem; }
+.step { background: var(--panel); border: 1px solid var(--muted); border-radius: 6px; padding: .9rem 1rem; margin: 1rem 0; }
+.step > h3 { margin-top: 0; overflow-wrap: anywhere; }
+.cols { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 60rem) { .cols.both { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.col { border-top: 3px solid var(--muted); padding-top: .5rem; min-width: 0; }
+.col.lit { border-top-color: var(--info); }
+.col.intent { border-top-color: var(--warn); }
+dl.kv { display: grid; grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr); gap: .2rem .8rem; margin: .4rem 0; font-size: .9rem; }
+dl.kv dt { color: var(--ink-soft); }
+dl.kv dd { margin: 0; overflow-wrap: anywhere; }
+ul.rules, ul.notes, ul.diff { padding-left: 1.1rem; margin: .3rem 0 .6rem; font-size: .9rem; }
+ul.rules li, ul.notes li { margin: .35rem 0; }
+.inferred { display: block; color: var(--ink-soft); margin-top: .15rem; font-style: italic; }
+.quote { display: block; color: var(--ink-soft); border-left: 2px solid var(--muted); padding-left: .55rem; margin-top: .15rem; }
+ul.diff { list-style: none; padding-left: 0; font-family: var(--mono); font-size: .82rem; }
+ul.diff li { padding: .1rem 0; overflow-wrap: anywhere; }
+.d-add { color: var(--ok); } .d-del { color: var(--err); } .d-chg { color: var(--warn); }
+.errbox { border-left: 3px solid var(--err); padding: .2rem 0 .2rem .7rem; margin: .5rem 0; }
+.errbox .what { color: var(--err); font-weight: 600; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+th, td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--muted); vertical-align: top; }
+th { color: var(--ink-soft); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+td.res { font-family: var(--mono); font-weight: 700; white-space: nowrap; }
+td.res.pass { color: var(--ok); } td.res.fail { color: var(--err); }
+td code { font-size: .82rem; }
+details { margin: .4rem 0; }
+summary { cursor: pointer; font-weight: 600; }
+ul { padding-left: 1.2rem; }
+li { margin: .25rem 0; }
+.status { font-weight: 600; }
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--muted); color: var(--ink-soft); font-size: .9rem; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="titles">
+    <h1>SCIM PATCH Evaluator</h1>
+    <p class="lede">Paste a SCIM User or Group and a PATCH request. See the resource after every operation under a literal reading of RFC 7644, beside what Microsoft Entra's documented request shapes intend, with the rule behind every change. Everything runs in your browser.</p>
+  </div>
+  <button type="button" id="theme-toggle">Use dark theme</button>
+</header>
+
+<main>
+<p>The case that motivated this page: Microsoft documents a group member removal sent as <code>{"op":"Remove","path":"members","value":[{"value":"..."}]}</code>. Read literally, RFC 7644 section 3.5.2.2 removes the attribute and all its values, and no remove rule reads a <code>value</code> member. Microsoft's own known-issues page calls that request shape non SCIM compliant, lists the fix as not done, and its SCIM tutorial still prints it as the Remove Members example. Each side follows its own published document. Load the first preset to see both results side by side.</p>
+
+<section class="panel" aria-labelledby="in-h">
+  <h2 id="in-h" style="margin-top:0">Input</h2>
+  <div class="row" style="margin-top:0">
+    <label for="preset" class="inline">Preset</label>
+    <select id="preset"></select>
+    <button type="button" id="load">Load preset</button>
+  </div>
+  <p class="note" id="preset-note"></p>
+  <div class="grid two">
+    <div>
+      <label for="res">SCIM resource (User, Group, or User with the enterprise extension) <span class="hint">JSON</span></label>
+      <textarea id="res" spellcheck="false" autocomplete="off" rows="18"></textarea>
+    </div>
+    <div>
+      <label for="patch">PATCH request body <span class="hint">JSON with schemas and Operations</span></label>
+      <textarea id="patch" spellcheck="false" autocomplete="off" rows="18"></textarea>
+    </div>
+  </div>
+  <div class="row">
+    <button type="button" class="primary" id="run">Evaluate</button>
+    <label class="inline" for="strict"><input type="checkbox" id="strict"> Strict literal op (reject "Add", "Replace", "Remove")</label>
+  </div>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+</section>
+
+<section aria-labelledby="out-h">
+  <h2 id="out-h">Result</h2>
+  <div id="out"><p class="note">Nothing evaluated yet.</p></div>
+</section>
+
+<section aria-labelledby="how-h">
+  <h2 id="how-h">How to read the result</h2>
+  <p><strong>Literal RFC 7644.</strong> Each operation is applied in order, the result of one feeding the next (RFC 7644 3.5.2), under the bullets of 3.5.2.1 (add), 3.5.2.2 (remove) and 3.5.2.3 (replace), against a schema table derived from RFC 7643. Every step shows the op as received, the normalised op, the resolved target, the section and bullet applied, and the before and after difference. The first failing operation stops the request: the verdict is HTTP 400 with its <code>scimType</code>, and the ORIGINAL resource is shown, because 3.5.2 says a PATCH request "SHALL be treated as atomic" and "the original SCIM resource MUST be restored".</p>
+  <p><strong>Sender's documented intent (Microsoft Learn).</strong> This column appears only for four request shapes Microsoft documents: (i) remove with path <code>members</code> and a <code>value</code> array listing members, (ii) replace of <code>active</code> with the string <code>"False"</code>, (iii) a no-path replace whose value keys are dotted (<code>name.givenName</code>) or fully qualified with a schema URN, and (iv) op values written <code>Add</code>, <code>Replace</code> or <code>Remove</code>. It never appears for any other shape. In particular Microsoft's pages document no intent for an add with a filtered path, so none is invented here.</p>
+  <h3>Where the RFC text gives two readings</h3>
+  <ul>
+    <li><strong>Dotted or URN-qualified keys in a no-path value.</strong> Reading A: the keys of the value object are attribute names, and the RFC 7643 2.1 ATTRNAME rule (a letter, then letters, digits, <code>$</code>, <code>-</code> or <code>_</code>) has no <code>.</code>, so <code>name.givenName</code> is not an attribute name. Reading B: RFC 7644 3.10 says "All operations share a common scheme for referencing simple and complex attributes", written <code>{urn}:{Attribute name}.{Sub-Attribute name}</code>. Both are shown; the shape is not labelled invalid. This tool carries reading B forward. Microsoft's sample with these keys is the one it labels SCIM Compliant (the with-feature-flag sample).</li>
+    <li><strong>Boolean sent as the string "False".</strong> RFC 7643 2.3 Table 1 maps Boolean to the RFC 7159 section 3 literal, and the JSON value arrived as a string, so the literal result is 400 <code>invalidValue</code> (RFC 7644 3.12, "not compatible with the operation or attribute type"). RFC 7643 2.3.2 also says "A boolean has no case sensitivity or uniqueness.", and that sentence is sometimes read as permitting it.</li>
+    <li><strong>Remove with a filter that matches nothing.</strong> Default: no change, success, citing 3.5.2.2: "If the user was not a member of this group, no changes should be made to the resource, and a success response should be returned." The 3.12 <code>noTarget</code> description, "This occurs when the specified "path" value contains a filter that yields no match", can be read to apply.</li>
+    <li><strong>Replace with a filter when the attribute is entirely absent.</strong> Bullet 4 (treat as add, which then meets the undefined filtered add) and bullet 8 (400 <code>noTarget</code>) conflict. Both are shown; bullet 8 is carried forward.</li>
+    <li><strong>op case.</strong> RFC 7644 3.5.2 says op "MAY be one of "add", "remove", or "replace"" and states no case rule. The case-insensitivity in RFC 7643 2.1 covers ABNF strings, and op values are given in prose, not ABNF. Microsoft's tutorial says: "Don't require a case-sensitive match on structural elements in SCIM, in particular PATCH op operation values, as defined in section 3.5.2." Section 3.5.2 contains no such statement. By default this tool evaluates op case-insensitively and flags anything other than the three listed literals. The strict toggle rejects instead, without naming a <code>scimType</code>, because RFC 7644 names none for this case.</li>
+    <li><strong>Merges.</strong> Add on a complex single-valued attribute merges sub-attributes (bullet 3); bullets 3 and 7 also admit replacing the whole value. Replace through a matching filter replaces each matched record whole (bullet 6); bullet 5's merge wording can be read to apply. Both notes appear on the step.</li>
+  </ul>
+  <h3>Named refusals</h3>
+  <ul>
+    <li><strong>A value path nested inside a value filter</strong>, such as <code>emails[type eq "work" and x[y eq "z"]]</code>: the Figure 1 ABNF admits it through <code>logExp</code> and <code>FILTER</code>, erratum 4690 (Held for Document Update) says that recursion is unintended, and its semantics are undefined. Result: 400 <code>invalidFilter</code>, not evaluated.</li>
+    <li><strong>A bare attribute expression used as a PATCH path</strong>, such as <code>schemas eq "urn:..."</code>: Figure 7 (<code>PATH = attrPath / valuePath [subAttr]</code>) does not allow it, and erratum 7122 (Held for Document Update) proposes allowing it. Result: 400 <code>invalidPath</code>.</li>
+    <li><strong>An unknown operator</strong>, such as <code>regex</code>: 400 <code>invalidFilter</code> (3.4.2.2, "Providers MUST decline to filter results if the specified filter operation is not recognized").</li>
+    <li><strong>An add whose path carries a filter</strong>: RFC 7644 3.5.2.1 has no rule for it. The step is shown as UNDEFINED, is not applied, and the verdict says it depends on an undefined step. Erratum 8097 (Held for Document Update) raises exactly this case.</li>
+  </ul>
+  <h3>Choices this tool makes where the text is silent</h3>
+  <ul>
+    <li>Filter precedence is attribute expression, then <code>not</code>, then <code>and</code>, then <code>or</code>. The printed 3.4.2.2 text lists "Grouping operators", "Logical operators", "Attribute operators" in that order of precedence; erratum 4670 (Held for Document Update) says that order is reversed, and every example in the RFC needs attribute expressions to bind tightest. This tool follows the erratum reading.</li>
+    <li><code>not</code> must have a parenthesised operand, with optional whitespace before <code>(</code>, because the RFC's own example has a space; erratum 7319 (Reported) raises it.</li>
+    <li>Attribute names, sub-attribute names, schema URNs, attribute operators and <code>and</code>, <code>or</code>, <code>not</code> match case-insensitively (3.4.2.2, 3.10, RFC 7643 2.1). JSON keys in the resource match case-insensitively too; the existing key's spelling is kept on write, and the schema's spelling is used when a key is created. Two keys that differ only in case are flagged as ambiguous.</li>
+    <li>String comparison follows <code>caseExact</code> (3.4.2.2). For a case-insensitive attribute both sides are lower-cased with JavaScript <code>toLowerCase</code>; full Unicode case folding is not applied. Reference and binary values compare exactly (RFC 7643 2.3.6 and 2.3.7). <code>members.value</code> has <code>caseExact</code> false in RFC 7643 8.7.1, so <code>members[value eq "ABC"]</code> matches <code>"abc"</code>.</li>
+    <li><code>ne</code> matches an unassigned attribute; <code>eq null</code> matches only an unassigned or null value; <code>co</code>, <code>sw</code> and <code>ew</code> match string values only.</li>
+    <li>Removing an attribute that is already unassigned is reported as no change. A complex value left with no sub-attributes is dropped as unassigned.</li>
+    <li>A sub-attribute path under a multi-valued attribute without a filter (for example <code>emails.value</code>) has no rule in 3.5.2 and is reported as undefined.</li>
+    <li>When one value gets <code>primary</code> true, values carrying <code>primary</code> true are set to false; values without a <code>primary</code> member already read as false (RFC 7643 2.4).</li>
+    <li>Duplicate keys in one JSON object are flagged. The last one is used, as <code>JSON.parse</code> would; a duplicate <code>op</code> fails the request (3.5.2, "exactly one "op" member").</li>
+    <li>A malformed request body (no PatchOp URN in <code>schemas</code>, no <code>Operations</code> array) gets HTTP 400 without a <code>scimType</code>: Table 9's <code>invalidSyntax</code> describes it but does not list PATCH.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="schema-h">
+  <h2 id="schema-h">Embedded schema table</h2>
+  <p>Derived from the RFC 7643 8.7.1 schema representation and RFC 7643 3.1, then corrected by the errata below. Defaults from RFC 7643 2.2 apply where a cell is blank: not required, <code>caseExact</code> false, <code>readWrite</code>. This is a table written for this page, not the RFC's figure. An attribute not in this table is applied with its shape inferred from the JSON (an array means multi-valued) and flagged as "not in the core schemas; a custom schema may define it".</p>
+  <details>
+    <summary>Show the table</summary>
+    <div class="tablewrap" tabindex="0" role="region" aria-label="Embedded schema table">
+      <table id="schema-table"><caption class="visually-hidden">Attributes, types and characteristics used by the evaluator</caption>
+        <thead><tr><th scope="col">Schema</th><th scope="col">Attribute</th><th scope="col">Type</th><th scope="col">Multi</th><th scope="col">Required</th><th scope="col">caseExact</th><th scope="col">Mutability</th><th scope="col">Note</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </details>
+</section>
+
+<section aria-labelledby="errata-h">
+  <h2 id="errata-h">Errata this page relies on</h2>
+  <p class="note">Statuses as re-read on 2026-10-01 from https://www.rfc-editor.org/errata_search.php?rfc=7644 and https://www.rfc-editor.org/errata_search.php?rfc=7643. Statuses change; re-check before you cite one.</p>
+  <div class="tablewrap" tabindex="0" role="region" aria-label="Errata table">
+    <table>
+      <caption class="visually-hidden">RFC 7644 and RFC 7643 errata used by the evaluator</caption>
+      <thead><tr><th scope="col">ID</th><th scope="col">RFC</th><th scope="col">Status</th><th scope="col">What it says</th><th scope="col">How this page uses it</th></tr></thead>
+      <tbody>
+        <tr><td>4670</td><td>7644 3.4.2.2</td><td>Held for Document Update</td><td>The filter precedence order is reversed: attribute operators should bind before logical operators.</td><td>Parser precedence: attribute expression, not, and, or.</td></tr>
+        <tr><td>4690</td><td>7644 3.4.2.2</td><td>Held for Document Update</td><td>valFilter recursion through logExp is unintended; a value path should not nest inside a value filter.</td><td>Named refusal, 400 invalidFilter.</td></tr>
+        <tr><td>7122</td><td>7644 3.5.2</td><td>Held for Document Update</td><td>Proposes adding attrExp to the PATCH PATH rule.</td><td>Named refusal of a bare attrExp path, 400 invalidPath, with the proposal shown.</td></tr>
+        <tr><td>7319</td><td>7644 3.4.2.2</td><td>Reported</td><td>The ABNF allows no space after not, while the RFC's example has one.</td><td>Optional whitespace accepted between not and the parenthesis.</td></tr>
+        <tr><td>8097</td><td>7644 3.5.2.1</td><td>Held for Document Update</td><td>Raises an add whose path carries a filter, which the add rules do not cover.</td><td>Filtered add is shown as UNDEFINED and not applied.</td></tr>
+        <tr><td>5368</td><td>7643 8.7.1</td><td>Verified</td><td>Group displayName is required true; the figure said false while the 4.2 prose says REQUIRED.</td><td>displayName is required, so removing it is 400 mutability.</td></tr>
+        <tr><td>6011</td><td>7643 8.7.1</td><td>Reported</td><td>Asks for a display sub-attribute in the members definition.</td><td>members.display accepted and flagged informationally.</td></tr>
+        <tr><td>8471</td><td>7643 8.7.1</td><td>Verified</td><td>groups.$ref referenceTypes should be Group only.</td><td>Schema table.</td></tr>
+        <tr><td>8472</td><td>7643 8.7.1</td><td>Verified</td><td>Enterprise manager.value is caseExact true.</td><td>manager.value comparisons are case exact.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="src-h">
+  <h2 id="src-h">Sources</h2>
+  <p class="note">All re-read on 2026-10-01. URLs are printed as text so the page never loads anything.</p>
+  <ul>
+    <li>RFC 7644, SCIM Protocol, September 2015: https://www.rfc-editor.org/rfc/rfc7644.txt (sections 3.4.2.2, 3.5.2, 3.5.2.1, 3.5.2.2, 3.5.2.3, 3.10, 3.12).</li>
+    <li>RFC 7643, SCIM Core Schema, September 2015: https://www.rfc-editor.org/rfc/rfc7643.txt (sections 2.1 to 2.5, 3.1, 4.2, 4.3, 8.7.1).</li>
+    <li>RFC 9865 (October 2025) and RFC 9967 (May 2026) both carry "Updates: 7643, 7644". RFC 9865 adds cursor-based pagination. RFC 9967 adds SCIM security events and an optional asynchronous request mode, in which a client sends <code>Prefer: respond-async</code> and a server may answer 202 with no body. Neither changes how PATCH operations are applied under 3.5.2. https://www.rfc-editor.org/rfc/rfc9865.txt and https://www.rfc-editor.org/rfc/rfc9967.txt</li>
+    <li>Microsoft Learn, "Known issues and resolutions with SCIM 2.0 protocol compliance of the Microsoft Entra user provisioning service", visible "Last updated on" 2025-08-25: https://learn.microsoft.com/en-us/entra/identity/app-provisioning/application-provisioning-config-problem-scim-compatibility. Its table row "Update PATCH behavior to ensure compliance (such as active as boolean and proper group membership removals)" reads Fixed: No, Fix date: TBD, Backwards compatibility: use feature flag. The flag <code>aadOptscim062020</code>, labelled "URL (SCIM Compliant)", changes four request shapes: requests made to disable users, requests to add a single-value string attribute, requests to replace multiple attributes, and requests to remove a group member. The page adds: "Note this feature flag currently doesn't work with on-demand provisioning." It names <code>AzureAdScimPatch2017</code> as the URL to "roll back to the old, non SCIM compliant behavior".</li>
+    <li>Microsoft Learn, "Tutorial: Develop and plan provisioning for a SCIM endpoint in Microsoft Entra ID", visible "Last updated on" 2026-09-15: https://learn.microsoft.com/en-us/entra/identity/app-provisioning/use-scim-to-provision-users-and-groups. It says "Microsoft Entra ID emits the values of op as Add, Replace, and Remove." and prints "Update Group [Remove Members]" with path <code>members</code> and a <code>value</code> array.</li>
+  </ul>
+  <p>This is an independent tool. It is not affiliated with or endorsed by Microsoft or the IETF. Microsoft Entra is named only to describe request shapes Microsoft publishes. Behaviour was reimplemented from RFC 7643 and RFC 7644; no code is reproduced. Preset request structures follow the cited Microsoft Learn samples with original identifiers and values.</p>
+</section>
+
+<section aria-labelledby="st-h">
+  <h2 id="st-h">Self test</h2>
+  <p>Runs on load and on demand, against the same code that evaluated your request. It covers one fixture per bullet of 3.5.2.1, 3.5.2.2 and 3.5.2.3, every preset, the URN, quoting, case and <code>caseExact</code> fixtures, the named refusals, a precedence fuzz against an independent oracle (seeded random boolean trees over and, or and not, printed with minimal parentheses, parsed back and compared on random records), and a positive control: an assertion written to fail. If the control ever reports PASS, the suite is not running and its counts mean nothing.</p>
+  <div class="row"><button type="button" id="selftest">Run self test</button></div>
+  <p class="status" id="st-summary" role="status" aria-live="polite">Not run yet.</p>
+  <details id="st-details">
+    <summary>Show every check</summary>
+    <div class="tablewrap" tabindex="0" role="region" aria-label="Self test results">
+      <table id="st-table"><caption class="visually-hidden">Self test results</caption>
+        <thead><tr><th scope="col">Check</th><th scope="col">Expected</th><th scope="col">Got</th><th scope="col">Result</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </details>
+</section>
+</main>
+
+<footer>
+  <p>MIT licensed. Copyright (c) 2026 0xelitesystem. Source: https://github.com/0xelitesystem/scim-patch-evaluator</p>
+  <p>Independent tool, not affiliated with or endorsed by Microsoft or the IETF. Nothing you paste leaves this page.</p>
+  <p><a href="https://elitesystem.ai">elitesystem.ai</a></p>
+</footer>
+
+</div>
+
+<script>
+/* ==== CORE START ==== */
+var SCIM = (function () {
+"use strict";
+
+var URN = {
+  USER: "urn:ietf:params:scim:schemas:core:2.0:User",
+  GROUP: "urn:ietf:params:scim:schemas:core:2.0:Group",
+  ENT: "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
+  PATCH: "urn:ietf:params:scim:api:messages:2.0:PatchOp",
+  ERROR: "urn:ietf:params:scim:api:messages:2.0:Error"
+};
+
+/* ---------- small helpers ---------- */
+function hasOwn(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+function isObj(v) { return v !== null && typeof v === "object" && !Array.isArray(v); }
+function setProp(o, k, v) { Object.defineProperty(o, k, { value: v, writable: true, enumerable: true, configurable: true }); }
+function clone(v) {
+  if (Array.isArray(v)) { return v.map(clone); }
+  if (isObj(v)) { var o = {}; Object.keys(v).forEach(function (k) { setProp(o, k, clone(v[k])); }); return o; }
+  return v;
+}
+function deepEq(a, b) {
+  if (a === b) { return true; }
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b) || a.length !== b.length) { return false; }
+    for (var i = 0; i < a.length; i++) { if (!deepEq(a[i], b[i])) { return false; } }
+    return true;
+  }
+  if (isObj(a) && isObj(b)) {
+    var ka = Object.keys(a), kb = Object.keys(b);
+    if (ka.length !== kb.length) { return false; }
+    for (var j = 0; j < ka.length; j++) { if (!hasOwn(b, ka[j]) || !deepEq(a[ka[j]], b[ka[j]])) { return false; } }
+    return true;
+  }
+  return false;
+}
+function assigned(v) {
+  if (v === undefined || v === null) { return false; }
+  if (Array.isArray(v)) { return v.length > 0; }
+  return true;
+}
+function getKeys(obj, name) {
+  if (!isObj(obj)) { return []; }
+  var l = String(name).toLowerCase();
+  return Object.keys(obj).filter(function (k) { return k.toLowerCase() === l; });
+}
+function getCI(obj, name) {
+  var ks = getKeys(obj, name);
+  if (!ks.length) { return undefined; }
+  return obj[ks.indexOf(name) >= 0 ? name : ks[0]];
+}
+function short(v) {
+  var s;
+  try { s = JSON.stringify(v); } catch (e) { s = String(v); }
+  if (s === undefined) { s = "undefined"; }
+  return s.length > 160 ? s.slice(0, 157) + "..." : s;
+}
+
+/* ---------- strict JSON parser: positions in errors, duplicate keys recorded ---------- */
+var NUM_RE = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/y;
+function parseJSON(text) {
+  var i = 0, n = text.length, dups = [];
+  function E(msg) { var e = new Error(msg); e.pos = i; e.json = true; throw e; }
+  function ws() { while (i < n) { var c = text.charCodeAt(i); if (c === 32 || c === 9 || c === 10 || c === 13) { i++; } else { break; } } }
+  function str() {
+    i++;
+    var s = "";
+    for (;;) {
+      if (i >= n) { E("Unterminated string"); }
+      var c = text[i];
+      if (c === "\"") { i++; return s; }
+      if (c === "\\") {
+        var e = text[i + 1];
+        if (e === "u") {
+          var hx = text.substr(i + 2, 4);
+          if (!/^[0-9a-fA-F]{4}$/.test(hx)) { E("Bad \\u escape in a string"); }
+          s += String.fromCharCode(parseInt(hx, 16)); i += 6; continue;
+        }
+        var map = { "\"": "\"", "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t" };
+        if (!hasOwn(map, e)) { E("Bad escape in a string"); }
+        s += map[e]; i += 2; continue;
+      }
+      if (c.charCodeAt(0) < 32) { E("Unescaped control character in a string"); }
+      s += c; i++;
+    }
+  }
+  function val(path, depth) {
+    if (depth > 200) { E("Nesting is deeper than 200 levels"); }
+    ws();
+    if (i >= n) { E("Unexpected end of input"); }
+    var c = text[i];
+    if (c === "{") { return obj(path, depth); }
+    if (c === "[") { return arr(path, depth); }
+    if (c === "\"") { return str(); }
+    if (c === "-" || (c >= "0" && c <= "9")) {
+      NUM_RE.lastIndex = i;
+      var m = NUM_RE.exec(text);
+      if (!m || !m[0].length || m[0] === "-") { E("Bad number"); }
+      i += m[0].length; return Number(m[0]);
+    }
+    if (text.startsWith("true", i)) { i += 4; return true; }
+    if (text.startsWith("false", i)) { i += 5; return false; }
+    if (text.startsWith("null", i)) { i += 4; return null; }
+    E("Unexpected character " + JSON.stringify(c));
+  }
+  function obj(path, depth) {
+    i++;
+    var o = {}, seen = {};
+    ws();
+    if (text[i] === "}") { i++; return o; }
+    for (;;) {
+      ws();
+      if (text[i] !== "\"") { E("Expected a quoted member name"); }
+      var k = str();
+      ws();
+      if (text[i] !== ":") { E("Expected \":\" after a member name"); }
+      i++;
+      var v = val(path.concat([k]), depth + 1);
+      if (hasOwn(seen, k)) { dups.push({ path: path.slice(), key: k }); }
+      setProp(seen, k, true);
+      setProp(o, k, v);
+      ws();
+      if (text[i] === ",") { i++; continue; }
+      if (text[i] === "}") { i++; return o; }
+      E("Expected \",\" or \"}\"");
+    }
+  }
+  function arr(path, depth) {
+    i++;
+    var a = [];
+    ws();
+    if (text[i] === "]") { i++; return a; }
+    for (;;) {
+      a.push(val(path.concat([a.length]), depth + 1));
+      ws();
+      if (text[i] === ",") { i++; continue; }
+      if (text[i] === "]") { i++; return a; }
+      E("Expected \",\" or \"]\"");
+    }
+  }
+  try {
+    ws();
+    if (i >= n) { return { ok: false, error: "The box is empty." }; }
+    var v = val([], 0);
+    ws();
+    if (i < n) { E("Unexpected text after the JSON value"); }
+    return { ok: true, value: v, dups: dups };
+  } catch (e) {
+    if (!e || !e.json) { return { ok: false, error: "Could not parse: " + String(e && e.message) }; }
+    var pos = Math.min(e.pos, n), line = 1, col = 1;
+    for (var j = 0; j < pos; j++) { if (text[j] === "\n") { line++; col = 1; } else { col++; } }
+    return { ok: false, error: e.message + " at line " + line + ", column " + col + " (offset " + pos + ")." };
+  }
+}
+
+/* ---------- schema table derived from RFC 7643 8.7.1 and 3.1, errata applied ---------- */
+function A(name, type, o) {
+  o = o || {};
+  var list = o.sub || null, m = null;
+  if (list) { m = {}; list.forEach(function (d) { setProp(m, d.name.toLowerCase(), d); }); }
+  return { name: name, type: type, multi: !!o.m, req: !!o.req, ce: !!o.ce, mut: o.mut || "readWrite",
+    sub: m, subList: list, canon: o.canon || null, ref: o.ref || null, flag: o.flag || null };
+}
+function MV(valueType, canon) {
+  return [A("value", valueType || "string"), A("display", "string"), A("type", "string", { canon: canon || null }), A("primary", "boolean")];
+}
+function mapOf(list) { var m = {}; list.forEach(function (d) { setProp(m, d.name.toLowerCase(), d); }); return m; }
+var COMMON = [
+  A("id", "string", { ce: true, mut: "readOnly", flag: "RFC 7643 3.1: caseExact true, readOnly. These characteristics take precedence over older schema listings." }),
+  A("externalId", "string", { ce: true, flag: "RFC 7643 3.1: caseExact true, readWrite." }),
+  A("meta", "complex", { mut: "readOnly", sub: [A("resourceType", "string", { ce: true, mut: "readOnly" }), A("created", "dateTime", { mut: "readOnly" }), A("lastModified", "dateTime", { mut: "readOnly" }), A("location", "reference", { mut: "readOnly" }), A("version", "string", { ce: true, mut: "readOnly" })], flag: "RFC 7643 3.1: assigned by the service provider." }),
+  A("schemas", "string", { m: true, req: true, flag: "RFC 7643 3: REQUIRED. RFC 7644 3.5.2 lets a PATCH modify it." })
+];
+var USER_ATTRS = [
+  A("userName", "string", { req: true, flag: "uniqueness server" }),
+  A("name", "complex", { sub: ["formatted", "familyName", "givenName", "middleName", "honorificPrefix", "honorificSuffix"].map(function (n) { return A(n, "string"); }) }),
+  A("displayName", "string"), A("nickName", "string"), A("profileUrl", "reference"), A("title", "string"), A("userType", "string"),
+  A("preferredLanguage", "string"), A("locale", "string"), A("timezone", "string"), A("active", "boolean"),
+  A("password", "string", { mut: "writeOnly" }),
+  A("emails", "complex", { m: true, sub: MV("string", ["work", "home", "other"]) }),
+  A("phoneNumbers", "complex", { m: true, sub: MV("string", ["work", "home", "mobile", "fax", "pager", "other"]) }),
+  A("ims", "complex", { m: true, sub: MV("string", ["aim", "gtalk", "icq", "xmpp", "msn", "skype", "qq", "yahoo"]) }),
+  A("photos", "complex", { m: true, sub: MV("reference", ["photo", "thumbnail"]) }),
+  A("addresses", "complex", { m: true, sub: ["formatted", "streetAddress", "locality", "region", "postalCode", "country"].map(function (n) { return A(n, "string"); }).concat([
+    A("type", "string", { canon: ["work", "home", "other"] }),
+    A("primary", "boolean", { flag: "Not in the RFC 7643 8.7.1 addresses definition. Added from the RFC 7643 2.4 default sub-attributes." })]) }),
+  A("groups", "complex", { m: true, mut: "readOnly", sub: [A("value", "string", { mut: "readOnly" }), A("$ref", "reference", { mut: "readOnly", ref: ["Group"], flag: "referenceTypes Group only, erratum 8471 (Verified)." }), A("display", "string", { mut: "readOnly" }), A("type", "string", { mut: "readOnly", canon: ["direct", "indirect"] })] }),
+  A("entitlements", "complex", { m: true, sub: MV() }),
+  A("roles", "complex", { m: true, sub: MV() }),
+  A("x509Certificates", "complex", { m: true, sub: MV("binary") })
+];
+var GROUP_ATTRS = [
+  A("displayName", "string", { req: true, flag: "required true per erratum 5368 (Verified); the 8.7.1 figure says false, the 4.2 prose says REQUIRED." }),
+  A("members", "complex", { m: true, flag: "RFC 7643 4.2: values MAY be added or removed; sub-attributes are immutable.", sub: [
+    A("value", "string", { mut: "immutable", flag: "caseExact false in 8.7.1, so members[value eq \"ABC\"] matches \"abc\"." }),
+    A("$ref", "reference", { mut: "immutable", ref: ["User", "Group"] }),
+    A("type", "string", { mut: "immutable", canon: ["User", "Group"] }),
+    A("display", "string", { mut: "immutable", flag: "Not in the 8.7.1 members definition. RFC 7643 2.4 lists display as a default sub-attribute (immutable), RFC 7644 examples use it, and erratum 6011 (Reported) asks for it. Accepted and carried through." })] })
+];
+var ENT_ATTRS = ["employeeNumber", "costCenter", "organization", "division", "department"].map(function (n) { return A(n, "string"); }).concat([
+  A("manager", "complex", { sub: [A("value", "string", { ce: true, flag: "caseExact true per erratum 8472 (Verified)." }), A("$ref", "reference", { ref: ["User"] }), A("displayName", "string", { mut: "readOnly" })] })
+]);
+var DEFS = {
+  User: mapOf(COMMON.concat(USER_ATTRS)),
+  Group: mapOf(COMMON.concat(GROUP_ATTRS)),
+  none: mapOf(COMMON),
+  ent: mapOf(ENT_ATTRS)
+};
+function schemaRows() {
+  var rows = [];
+  function push(schema, d, prefix) {
+    rows.push({ schema: schema, name: prefix + d.name, type: d.type, multi: d.multi ? "yes" : "", req: d.req ? "true" : "", ce: d.ce ? "true" : "", mut: d.mut === "readWrite" ? "" : d.mut,
+      note: [d.canon ? "canonical: " + d.canon.join(", ") : "", d.ref ? "referenceTypes: " + d.ref.join(", ") : "", d.flag || ""].filter(Boolean).join(" ") });
+    (d.subList || []).forEach(function (s) { push(schema, s, d.name + "."); });
+  }
+  COMMON.forEach(function (d) { push("common (3.1)", d, ""); });
+  USER_ATTRS.forEach(function (d) { push("User", d, ""); });
+  GROUP_ATTRS.forEach(function (d) { push("Group", d, ""); });
+  ENT_ATTRS.forEach(function (d) { push("enterprise User", d, ""); });
+  return rows;
+}
+
+/* ---------- rule texts quoted from RFC 7644, RFC 7643 and Microsoft Learn ---------- */
+var R = {
+  add0: ["RFC 7644 3.5.2.1", "The operation MUST contain a \"value\" member whose content specifies the value to be added."],
+  add1: ["RFC 7644 3.5.2.1, bullet 1", "If omitted, the target location is assumed to be the resource itself. The \"value\" parameter contains a set of attributes to be added to the resource."],
+  add2: ["RFC 7644 3.5.2.1, bullet 2", "If the target location does not exist, the attribute and value are added."],
+  add3: ["RFC 7644 3.5.2.1, bullet 3", "If the target location specifies a complex attribute, a set of sub-attributes SHALL be specified in the \"value\" parameter."],
+  add4: ["RFC 7644 3.5.2.1, bullet 4", "If the target location specifies a multi-valued attribute, a new value is added to the attribute."],
+  add5: ["RFC 7644 3.5.2.1, bullet 5", "If the target location specifies a single-valued attribute, the existing value is replaced."],
+  add6: ["RFC 7644 3.5.2.1, bullet 6", "If the target location specifies an attribute that does not exist (has no value), the attribute is added with the new value."],
+  add7: ["RFC 7644 3.5.2.1, bullet 7", "If the target location exists, the value is replaced."],
+  add8: ["RFC 7644 3.5.2.1, bullet 8", "If the target location already contains the value specified, no changes SHOULD be made to the resource, and a success response SHOULD be returned."],
+  addNone: ["RFC 7644 3.5.2.1 and erratum 8097", "No bullet of 3.5.2.1 addresses an add whose \"path\" carries a value filter. Erratum 8097 (Held for Document Update) raises exactly this case."],
+  rm1: ["RFC 7644 3.5.2.2, bullet 1", "If \"path\" is unspecified, the operation fails with HTTP status code 400 and a \"scimType\" error code of \"noTarget\"."],
+  rm2: ["RFC 7644 3.5.2.2, bullet 2", "If the target location is a single-value attribute, the attribute and its associated value is removed, and the attribute SHALL be considered unassigned."],
+  rm3: ["RFC 7644 3.5.2.2, bullet 3", "If the target location is a multi-valued attribute and no filter is specified, the attribute and all values are removed, and the attribute SHALL be considered unassigned."],
+  rm4: ["RFC 7644 3.5.2.2, bullet 4", "If the target location is a multi-valued attribute and a complex filter is specified comparing a \"value\", the values matched by the filter are removed. If no other values remain after removal of the selected values, the multi-valued attribute SHALL be considered unassigned."],
+  rm5: ["RFC 7644 3.5.2.2, bullet 5", "If the target location is a complex multi-valued attribute and a complex filter is specified based on the attribute's sub-attributes, the matching records are removed. Sub-attributes whose values have been removed SHALL be considered unassigned. If the complex multi-valued attribute has no remaining records, the attribute SHALL be considered unassigned."],
+  rmMut: ["RFC 7644 3.5.2.2", "If an attribute is removed or becomes unassigned and is defined as a required attribute or a read-only attribute, the server SHALL return an HTTP response status code and a JSON detail error response as defined in Section 3.12, with a \"scimType\" error code of \"mutability\"."],
+  rmNone: ["RFC 7644 3.5.2.2", "If the user was not a member of this group, no changes should be made to the resource, and a success response should be returned."],
+  rp1: ["RFC 7644 3.5.2.3, bullet 1", "If the \"path\" parameter is omitted, the target is assumed to be the resource itself. In this case, the \"value\" attribute SHALL contain a list of one or more attributes that are to be replaced."],
+  rp2: ["RFC 7644 3.5.2.3, bullet 2", "If the target location is a single-value attribute, the attributes value is replaced."],
+  rp3: ["RFC 7644 3.5.2.3, bullet 3", "If the target location is a multi-valued attribute and no filter is specified, the attribute and all values are replaced."],
+  rp4: ["RFC 7644 3.5.2.3, bullet 4", "If the target location path specifies an attribute that does not exist, the service provider SHALL treat the operation as an \"add\"."],
+  rp5: ["RFC 7644 3.5.2.3, bullet 5", "If the target location specifies a complex attribute, a set of sub-attributes SHALL be specified in the \"value\" parameter, which replaces any existing values or adds where an attribute did not previously exist. Sub-attributes that are not specified in the \"value\" parameter are left unchanged."],
+  rp6: ["RFC 7644 3.5.2.3, bullet 6", "If the target location is a multi-valued attribute and a value selection (\"valuePath\") filter is specified that matches one or more values of the multi-valued attribute, then all matching record values SHALL be replaced."],
+  rp7: ["RFC 7644 3.5.2.3, bullet 7", "If the target location is a complex multi-valued attribute with a value selection filter (\"valuePath\") and a specific sub-attribute (e.g., \"addresses[type eq \"work\"].streetAddress\"), the matching sub-attribute of all matching records is replaced."],
+  rp8: ["RFC 7644 3.5.2.3, bullet 8", "If the target location is a multi-valued attribute for which a value selection filter (\"valuePath\") has been supplied and no record match was made, the service provider SHALL indicate failure by returning HTTP status code 400 and a \"scimType\" error code of \"noTarget\"."],
+  rpValue: ["RFC 7644 3.12, invalidValue", "A required value was missing, or the value specified was not compatible with the operation or attribute type (see Section 2.2 of [RFC7643]), or resource schema (see Section 4 of [RFC7643])."],
+  mut: ["RFC 7644 3.5.2", "a client MUST NOT modify an attribute that has mutability \"readOnly\" or \"immutable\". However, a client MAY \"add\" a value to an \"immutable\" attribute if the attribute had no previous value."],
+  members: ["RFC 7643 4.2", "While values MAY be added or removed, sub-attributes of members are \"immutable\"."],
+  primary: ["RFC 7644 3.5.2", "For multi-valued attributes, a PATCH operation that sets a value's \"primary\" sub-attribute to \"true\" SHALL cause the server to automatically set \"primary\" to \"false\" for any other values in the array."],
+  primaryOnce: ["RFC 7643 2.4", "The primary attribute value \"true\" MUST appear no more than once."],
+  schemas: ["RFC 7644 3.5.2", "Clients MAY implicitly modify the \"schemas\" attribute by adding (or replacing) an attribute with its fully qualified name, including schema URN."],
+  opmember: ["RFC 7644 3.5.2", "Each PATCH operation object MUST have exactly one \"op\" member, whose value indicates the operation to perform and MAY be one of \"add\", \"remove\", or \"replace\"."],
+  path: ["RFC 7644 3.5.2, Figure 7", "PATH = attrPath / valuePath [subAttr]. The \"valuePath\" rule allows specific values of a complex multi-valued attribute to be selected."],
+  invalidPath: ["RFC 7644 3.12, invalidPath", "The \"path\" attribute was invalid or malformed (see Figure 7)."],
+  invalidFilter: ["RFC 7644 3.12, invalidFilter", "The specified filter syntax was invalid (does not comply with Figure 1), or the specified attribute and filter comparison combination is not supported."],
+  unknownOp: ["RFC 7644 3.4.2.2", "Providers MUST decline to filter results if the specified filter operation is not recognized and return an HTTP 400 error with a \"scimType\" error of \"invalidFilter\"."],
+  boolCmp: ["RFC 7644 3.4.2.2, Table 3", "Boolean and Binary attributes SHALL cause a failed response (HTTP status code 400) with \"scimType\" of \"invalidFilter\"."],
+  nested: ["RFC 7644 3.4.2.2 and erratum 4690", "The Figure 1 ABNF admits a value path inside a value filter through logExp and FILTER. Erratum 4690 (Held for Document Update) says that recursion is unintended, and its semantics are undefined."],
+  bareExp: ["RFC 7644 3.5.2 and erratum 7122", "Figure 7 allows attrPath or valuePath [subAttr], not a bare attribute expression. Erratum 7122 (Held for Document Update) proposes adding attrExp to the rule."],
+  unassign: ["RFC 7643 2.5", "Assigning an attribute with the value \"null\" or an empty array (in the case of multi-valued attributes) has the effect of making the attribute \"unassigned\"."],
+  noTarget: ["RFC 7644 3.12, noTarget", "The specified \"path\" did not yield an attribute or attribute value that could be operated on. This occurs when the specified \"path\" value contains a filter that yields no match."],
+  bool: ["RFC 7643 2.3, Table 1", "Boolean: \"boolean\", Value per Section 3 of [RFC7159]."],
+  sequential: ["RFC 7644 3.5.2", "Each operation in the sequence is applied to the target resource; the resulting resource becomes the target of the next operation."],
+  attr310: ["RFC 7644 3.10", "All operations share a common scheme for referencing simple and complex attributes. ... {urn}:{Attribute name}.{Sub-Attribute name}."],
+  msRemove: ["Microsoft Learn, known issues page, \"Requests made to remove a group member\", Without feature flag; and the tutorial's \"Update Group [Remove Members]\"", "Remove only the members listed in the value array.", true],
+  msDisable: ["Microsoft Learn, known issues page, \"Requests made to disable users\", Without feature flag", "Set active to false.", true],
+  msReplace: ["Microsoft Learn, known issues page, \"Requests to replace multiple attributes\", With feature flag (labelled SCIM Compliant)", "Each key names the attribute to replace: name.givenName is the givenName sub-attribute of name, and a key prefixed with the enterprise URN is that extension attribute.", true],
+  msCase: ["Microsoft Learn, SCIM tutorial", "Don't require a case-sensitive match on structural elements in SCIM, in particular PATCH op operation values, as defined in section 3.5.2. Microsoft Entra ID emits the values of op as Add, Replace, and Remove."]
+};
+
+var SHAPES = {
+  i: { label: "remove members with a value array", rule: "msRemove" },
+  ii: { label: "replace active with the string \"False\"", rule: "msDisable" },
+  iii: { label: "no-path replace with dotted or URN keys", rule: "msReplace" },
+  iv: { label: "op value written Add, Replace or Remove", rule: "msCase" }
+};
+
+function Fail(scimType, detail, rule, extra) { this.fail = true; this.scimType = scimType; this.detail = detail; this.rule = rule; this.extra = extra || []; }
+function Undef(detail, rule) { this.undef = true; this.detail = detail; this.rule = rule; }
+function FErr(scimType, msg, rule, refusal) { this.ferr = true; this.scimType = scimType; this.msg = msg; this.rule = rule; this.refusal = refusal || null; }
+
+/* ---------- attribute names and schema URNs ---------- */
+var NAME_RE = /^\$?[A-Za-z][A-Za-z0-9_$-]*$/;
+var FIXED_URNS = [URN.USER, URN.GROUP, URN.ENT];
+function isCore(u) { return !!u && (u.toLowerCase() === URN.USER.toLowerCase() || u.toLowerCase() === URN.GROUP.toLowerCase()); }
+function resolveName(word, known) {
+  var list = (known || FIXED_URNS).slice().sort(function (a, b) { return b.length - a.length; });
+  var lw = word.toLowerCase(), uri = null, rest = word, hit = false;
+  for (var i = 0; i < list.length; i++) {
+    var lu = list[i].toLowerCase();
+    if (lw === lu) {
+      if (isCore(list[i])) { return { err: "\"" + word + "\" is a core schema URN and names no attribute." }; }
+      return { uri: list[i], extObject: true, attr: null, sub: null };
+    }
+    if (lw.indexOf(lu + ":") === 0) { uri = list[i]; rest = word.slice(list[i].length + 1); hit = true; break; }
+  }
+  if (!hit && word.indexOf(":") >= 0) { var k = word.lastIndexOf(":"); uri = word.slice(0, k); rest = word.slice(k + 1); }
+  var parts = rest.split(".");
+  if (parts.length > 2 || parts.some(function (p) { return !NAME_RE.test(p); })) {
+    return { err: "\"" + word + "\" is not an attribute path: it must be [schema URN \":\"] attribute [\".\" sub-attribute], with names that start with a letter." };
+  }
+  return { uri: uri, extObject: false, attr: parts[0], sub: parts[1] || null, knownUri: hit };
+}
+
+/* ---------- filter tokenizer and parser (RFC 7644 3.4.2.2 Figure 1) ---------- */
+var OPS = ["eq", "ne", "co", "sw", "ew", "gt", "ge", "lt", "le"];
+var JNUM = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
+function tokenize(s) {
+  var t = [], i = 0;
+  while (i < s.length) {
+    var c = s[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if (c === "(" || c === ")" || c === "[" || c === "]") { t.push({ k: c, pos: i }); i++; continue; }
+    if (c === "\"") {
+      var j = i + 1;
+      while (j < s.length && s[j] !== "\"") { if (s[j] === "\\") { j++; } j++; }
+      if (j >= s.length) { throw new FErr("invalidFilter", "Unterminated string in the filter, starting at offset " + i + ".", "invalidFilter"); }
+      var raw = s.slice(i, j + 1), v;
+      try { v = JSON.parse(raw); } catch (e) { throw new FErr("invalidFilter", "The filter string " + raw + " is not a valid JSON string (compValue uses RFC 7159 strings).", "invalidFilter"); }
+      t.push({ k: "str", v: v, pos: i }); i = j + 1; continue;
+    }
+    var m = i;
+    while (m < s.length && !/[\s()\[\]"]/.test(s[m])) { m++; }
+    t.push({ k: "w", v: s.slice(i, m), pos: i }); i = m;
+  }
+  return t;
+}
+function parseFilter(s, inBracket) {
+  var t = tokenize(s), p = 0, inB = !!inBracket;
+  function peek(o) { return t[p + (o || 0)]; }
+  function isW(tok, w) { return !!tok && tok.k === "w" && tok.v.toLowerCase() === w; }
+  function expect(k) {
+    var tok = t[p];
+    if (!tok || tok.k !== k) { throw new FErr("invalidFilter", "Expected \"" + k + "\"" + (tok ? " at offset " + tok.pos : " before the end of the filter") + ".", "invalidFilter"); }
+    p++;
+  }
+  function orE() { var l = andE(); while (isW(peek(), "or")) { p++; l = { type: "or", l: l, r: andE() }; } return l; }
+  function andE() { var l = un(); while (isW(peek(), "and")) { p++; l = { type: "and", l: l, r: un() }; } return l; }
+  function un() {
+    var tok = peek();
+    if (!tok) { throw new FErr("invalidFilter", "The filter ends where an expression was expected.", "invalidFilter"); }
+    if (tok.k === "(") { p++; var g = orE(); expect(")"); return g; }
+    if (isW(tok, "not")) {
+      var nx = peek(1);
+      if (nx && nx.k === "(") { p += 2; var e = orE(); expect(")"); return { type: "not", e: e }; }
+      if (!(nx && nx.k === "w" && (OPS.indexOf(nx.v.toLowerCase()) >= 0 || nx.v.toLowerCase() === "pr"))) {
+        throw new FErr("invalidFilter", "\"not\" must be followed by a parenthesised filter, as in not (expression).", "invalidFilter");
+      }
+    }
+    if (tok.k !== "w") { throw new FErr("invalidFilter", "Unexpected \"" + (tok.k === "str" ? JSON.stringify(tok.v) : tok.k) + "\" at offset " + tok.pos + "; expected an attribute name.", "invalidFilter"); }
+    p++;
+    var path = tok.v;
+    if (peek() && peek().k === "[") {
+      if (inB) {
+        throw new FErr("invalidFilter", "A value path (" + path + "[...]) nested inside a value filter. Refused: the ABNF admits it, erratum 4690 says it is unintended, and its semantics are undefined, so it is not evaluated.", "nested", "a");
+      }
+      p++; inB = true; var inner = orE(); inB = false; expect("]");
+      return { type: "vp", path: path, e: inner };
+    }
+    var opTok = peek();
+    if (!opTok || opTok.k !== "w") { throw new FErr("invalidFilter", "Expected an attribute operator after \"" + path + "\".", "invalidFilter"); }
+    var op = opTok.v.toLowerCase();
+    p++;
+    if (op === "pr") { return { type: "pr", path: path }; }
+    if (OPS.indexOf(op) < 0) { throw new FErr("invalidFilter", "The operator '" + opTok.v + "' is not supported. Recognised operators: eq, ne, co, sw, ew, pr, gt, ge, lt, le.", "unknownOp", "c"); }
+    var v = peek();
+    if (!v) { throw new FErr("invalidFilter", "The filter ends where a comparison value was expected after \"" + opTok.v + "\".", "invalidFilter"); }
+    p++;
+    var cv;
+    if (v.k === "str") { cv = v.v; }
+    else if (v.k === "w" && v.v === "true") { cv = true; }
+    else if (v.k === "w" && v.v === "false") { cv = false; }
+    else if (v.k === "w" && v.v === "null") { cv = null; }
+    else if (v.k === "w" && JNUM.test(v.v)) { cv = Number(v.v); }
+    else {
+      var hint = (v.k === "w" && /^(true|false|null)$/i.test(v.v)) ? " JSON literals are lowercase: true, false, null." : "";
+      throw new FErr("invalidFilter", "The comparison value " + (v.k === "w" ? "\"" + v.v + "\"" : v.k) + " is not a JSON false, null, true, number or string." + hint, "invalidFilter");
+    }
+    return { type: "cmp", path: path, op: op, cv: cv };
+  }
+  if (!t.length) { throw new FErr("invalidFilter", "The filter is empty.", "invalidFilter"); }
+  var ast = orE();
+  if (p < t.length) {
+    var x = t[p];
+    throw new FErr("invalidFilter", "Unexpected \"" + (x.k === "w" ? x.v : x.k === "str" ? JSON.stringify(x.v) : x.k) + "\" at offset " + x.pos + ".", "invalidFilter");
+  }
+  return ast;
+}
+function filterToString(n) {
+  if (n.type === "or") { return (n.l.type === "and" ? "(" + filterToString(n.l) + ")" : filterToString(n.l)) + " or " + (n.r.type === "and" ? "(" + filterToString(n.r) + ")" : filterToString(n.r)); }
+  if (n.type === "and") { return (n.l.type === "or" ? "(" + filterToString(n.l) + ")" : filterToString(n.l)) + " and " + (n.r.type === "or" ? "(" + filterToString(n.r) + ")" : filterToString(n.r)); }
+  if (n.type === "not") { return "not (" + filterToString(n.e) + ")"; }
+  if (n.type === "pr") { return n.path + " pr"; }
+  if (n.type === "vp") { return n.path + "[" + filterToString(n.e) + "]"; }
+  return n.path + " " + n.op + " " + JSON.stringify(n.cv);
+}
+function filterAttrs(n, out) {
+  out = out || [];
+  if (n.type === "or" || n.type === "and") { filterAttrs(n.l, out); filterAttrs(n.r, out); }
+  else if (n.type === "not") { filterAttrs(n.e, out); }
+  else { out.push(n.path.toLowerCase()); }
+  return out;
+}
+
+/* ---------- filter evaluation ---------- */
+function present(v) {
+  if (v === undefined || v === null || v === "") { return false; }
+  if (Array.isArray(v)) { return v.some(present); }
+  if (isObj(v)) { return Object.keys(v).some(function (k) { return present(v[k]); }); }
+  return true;
+}
+function inferType(v) {
+  if (typeof v === "string") { return "string"; }
+  if (typeof v === "boolean") { return "boolean"; }
+  if (typeof v === "number") { return Number.isInteger(v) ? "integer" : "decimal"; }
+  if (isObj(v)) { return "complex"; }
+  return null;
+}
+function foldCase(def, type) { return type === "string" && !(def && def.ce); }
+function compareVals(op, vals, cv, def) {
+  var type = def ? def.type : null;
+  if (!type) { for (var i = 0; i < vals.length && !type; i++) { type = inferType(vals[i]); } }
+  if ((op === "gt" || op === "ge" || op === "lt" || op === "le") && (type === "boolean" || type === "binary")) {
+    throw new FErr("invalidFilter", "\"" + op + "\" on a " + type + " attribute.", "boolCmp");
+  }
+  var fold = foldCase(def, type || "string");
+  function eqOne(v) {
+    if (cv === null) { return v === null; }
+    if (typeof v !== typeof cv) { return false; }
+    if (typeof v === "string") { return fold ? v.toLowerCase() === cv.toLowerCase() : v === cv; }
+    return v === cv;
+  }
+  if (op === "eq") { if (cv === null && !vals.length) { return true; } return vals.some(eqOne); }
+  if (op === "ne") { if (cv === null && !vals.length) { return false; } return !vals.some(eqOne); }
+  if (op === "co" || op === "sw" || op === "ew") {
+    if (typeof cv !== "string") { return false; }
+    var c = fold ? cv.toLowerCase() : cv;
+    return vals.some(function (v) {
+      if (typeof v !== "string") { return false; }
+      var s = fold ? v.toLowerCase() : v;
+      return op === "co" ? s.indexOf(c) >= 0 : op === "sw" ? s.indexOf(c) === 0 : s.length >= c.length && s.slice(s.length - c.length) === c;
+    });
+  }
+  return vals.some(function (v) {
+    var a, b;
+    if (type === "dateTime") {
+      if (typeof v !== "string" || typeof cv !== "string") { return false; }
+      a = Date.parse(v); b = Date.parse(cv);
+      if (isNaN(a) || isNaN(b)) { return false; }
+    } else if (typeof v === "number" && typeof cv === "number") { a = v; b = cv; }
+    else if (typeof v === "string" && typeof cv === "string") { a = fold ? v.toLowerCase() : v; b = fold ? cv.toLowerCase() : cv; }
+    else { return false; }
+    return op === "gt" ? a > b : op === "ge" ? a >= b : op === "lt" ? a < b : a <= b;
+  });
+}
+function valsOf(x) { return x === undefined ? [] : Array.isArray(x) ? x : [x]; }
+/* scope: { record: true, defs: map|null, primDef: def|null } for a value filter, or { resource: true, defs, known } */
+function attrVals(path, target, scope) {
+  if (scope.record) {
+    if (!NAME_RE.test(path)) {
+      throw new FErr("invalidFilter", "Inside a value filter the names are sub-attributes of the parent. \"" + path + "\" is not a sub-attribute name; a complex sub-attribute cannot have sub-attributes of its own (RFC 7643 2.3.8).", "invalidFilter");
+    }
+    if (!isObj(target)) { return { vals: path.toLowerCase() === "value" ? [target] : [], def: scope.primDef }; }
+    var d = scope.defs ? (scope.defs[path.toLowerCase()] || null) : null;
+    return { vals: valsOf(getCI(target, path)), def: d };
+  }
+  var r = resolveName(path, scope.known);
+  if (r.err) { throw new FErr("invalidFilter", r.err, "invalidFilter"); }
+  if (r.extObject) { return { vals: valsOf(getCI(target, r.uri)), def: null }; }
+  var cont = target, defs = scope.defs;
+  if (r.uri && !isCore(r.uri)) { cont = getCI(target, r.uri); defs = r.uri.toLowerCase() === URN.ENT.toLowerCase() ? DEFS.ent : null; }
+  if (!isObj(cont)) { return { vals: [], def: null }; }
+  var def = defs ? (defs[r.attr.toLowerCase()] || null) : null;
+  var top = valsOf(getCI(cont, r.attr));
+  if (!r.sub) { return { vals: top, def: def }; }
+  var sd = def && def.sub ? (def.sub[r.sub.toLowerCase()] || null) : null, out = [];
+  top.forEach(function (rec) { if (isObj(rec)) { valsOf(getCI(rec, r.sub)).forEach(function (v) { out.push(v); }); } });
+  return { vals: out, def: sd };
+}
+function evalFilter(n, target, scope) {
+  if (n.type === "or") { var a = evalFilter(n.l, target, scope), b = evalFilter(n.r, target, scope); return a || b; }
+  if (n.type === "and") { var c = evalFilter(n.l, target, scope), d = evalFilter(n.r, target, scope); return c && d; }
+  if (n.type === "not") { return !evalFilter(n.e, target, scope); }
+  if (n.type === "vp") {
+    var got = attrVals(n.path, target, scope);
+    var sub = { record: true, defs: got.def && got.def.sub ? got.def.sub : null, primDef: got.def && !got.def.sub ? got.def : null };
+    return got.vals.some(function (rec) { return evalFilter(n.e, rec, sub); });
+  }
+  var g = attrVals(n.path, target, scope);
+  if (n.type === "pr") { return g.vals.some(present); }
+  return compareVals(n.op, g.vals, n.cv, g.def);
+}
+
+/* ---------- PATCH path parser (RFC 7644 3.5.2 Figure 7) ---------- */
+function parsePath(str, known) {
+  var s = str;
+  if (!s.length) { return { err: new FErr("invalidPath", "\"path\" is an empty string.", "invalidPath") }; }
+  var b = s.indexOf("[");
+  var head = b < 0 ? s : s.slice(0, b);
+  if (/\s/.test(head)) {
+    var bare = false;
+    try { var ast = parseFilter(s, false); bare = ast.type === "cmp" || ast.type === "pr" || ast.type === "and" || ast.type === "or" || ast.type === "not"; } catch (e) { bare = false; }
+    if (bare) {
+      return { err: new FErr("invalidPath", "The path \"" + s + "\" is a bare attribute expression. Refused: Figure 7 allows attrPath or valuePath [subAttr], and erratum 7122 (Held for Document Update) only proposes allowing attrExp.", "bareExp", "b") };
+    }
+    return { err: new FErr("invalidPath", "The path \"" + s + "\" contains whitespace outside a filter, so it matches neither attrPath nor valuePath.", "invalidPath") };
+  }
+  var r = resolveName(head, known);
+  if (r.err) { return { err: new FErr("invalidPath", r.err, "invalidPath") }; }
+  var p = { raw: s, uri: r.uri, extObject: r.extObject, attr: r.attr, sub: r.sub, filter: null, filterText: null, fsub: null };
+  if (b < 0) { return { p: p }; }
+  if (r.extObject || r.sub) {
+    return { err: new FErr("invalidPath", "A value filter must follow a multi-valued attribute name; \"" + head + "\" is " + (r.extObject ? "an extension object" : "a sub-attribute") + ".", "path") };
+  }
+  var depth = 0, j = b, inStr = false, end = -1;
+  for (; j < s.length; j++) {
+    var c = s[j];
+    if (inStr) { if (c === "\\") { j++; } else if (c === "\"") { inStr = false; } continue; }
+    if (c === "\"") { inStr = true; continue; }
+    if (c === "[") { depth++; }
+    else if (c === "]") { depth--; if (depth === 0) { end = j; break; } }
+  }
+  if (end < 0) { return { err: new FErr("invalidPath", "The value filter opened at offset " + b + " is never closed with \"]\".", "invalidPath") }; }
+  var inner = s.slice(b + 1, end), tail = s.slice(end + 1);
+  if (tail.length) {
+    if (tail[0] !== "." || !NAME_RE.test(tail.slice(1))) {
+      return { err: new FErr("invalidPath", "After the closing \"]\" only \".subAttribute\" may follow; got \"" + tail + "\".", "invalidPath") };
+    }
+    p.fsub = tail.slice(1);
+  }
+  try { p.filter = parseFilter(inner, true); } catch (e) { if (e && e.ferr) { return { err: e }; } throw e; }
+  p.filterText = inner;
+  return { p: p };
+}
+
+/* ---------- evaluation context ---------- */
+function rule(ctx, id) { if (!ctx.ruleIds[id]) { ctx.ruleIds[id] = true; ctx.rules.push(id); } }
+function note(ctx, kind, text) { ctx.notes.push({ kind: kind, text: text }); }
+function keyIn(ctx, obj, name) {
+  var ks = getKeys(obj, name);
+  if (ks.length > 1) {
+    var pick = ks.indexOf(name) >= 0 ? name : ks[0];
+    note(ctx, "warn", "The JSON has keys that differ only in case (" + ks.join(", ") + "). Attribute names are case insensitive (RFC 7643 2.1), so this is ambiguous. This tool uses \"" + pick + "\".");
+    return pick;
+  }
+  return ks[0] || null;
+}
+function detectKind(res, notes) {
+  var sch = getCI(res, "schemas"), arr = Array.isArray(sch) ? sch : [];
+  function has(u) { return arr.some(function (x) { return typeof x === "string" && x.toLowerCase() === u.toLowerCase(); }); }
+  if (has(URN.USER) && has(URN.GROUP)) { notes.push({ kind: "warn", text: "\"schemas\" lists both the core User and the core Group URN. Evaluating as a User." }); return "User"; }
+  if (has(URN.USER)) { return "User"; }
+  if (has(URN.GROUP)) { return "Group"; }
+  notes.push({ kind: "warn", text: "\"schemas\" does not list the core User or Group URN (RFC 7643 3 requires \"schemas\"). The resource type is inferred from its attributes." });
+  if (getKeys(res, "userName").length) { return "User"; }
+  if (getKeys(res, "members").length) { return "Group"; }
+  return null;
+}
+function knownUrns(res) {
+  var list = FIXED_URNS.slice(), sch = getCI(res, "schemas");
+  if (Array.isArray(sch)) { sch.forEach(function (u) { if (typeof u === "string" && /^urn:/i.test(u) && !list.some(function (x) { return x.toLowerCase() === u.toLowerCase(); })) { list.push(u); } }); }
+  return list;
+}
+function ensureSchema(ctx, uri) {
+  if (!uri || isCore(uri)) { return; }
+  var sk = keyIn(ctx, ctx.res, "schemas"), sch = sk ? ctx.res[sk] : undefined;
+  if (!Array.isArray(sch)) { note(ctx, "warn", "The resource has no \"schemas\" array, so \"" + uri + "\" could not be added to it."); return; }
+  if (sch.some(function (x) { return typeof x === "string" && x.toLowerCase() === uri.toLowerCase(); })) { return; }
+  sch.push(uri);
+  rule(ctx, "schemas");
+  note(ctx, "info", "\"" + uri + "\" was added to \"schemas\" because an attribute was written by its fully qualified name. URNs are never removed from \"schemas\" implicitly.");
+}
+function locate(ctx, p) {
+  var core = !p.uri || isCore(p.uri);
+  var defs = null;
+  if (core) {
+    defs = DEFS[ctx.kind || "none"];
+    if (p.uri && ctx.kind && p.uri.toLowerCase() !== (ctx.kind === "User" ? URN.USER : URN.GROUP).toLowerCase()) {
+      note(ctx, "warn", "The path names the core " + (ctx.kind === "User" ? "Group" : "User") + " schema, but the resource is a " + ctx.kind + ".");
+    }
+  } else if (p.uri.toLowerCase() === URN.ENT.toLowerCase()) {
+    defs = ctx.kind === "Group" ? null : DEFS.ent;
+    if (ctx.kind === "Group") { note(ctx, "warn", "The enterprise User extension is applied to a Group."); }
+  } else {
+    note(ctx, "info", "The schema URN \"" + p.uri + "\" is not in the embedded tables. Attribute shapes under it are inferred from the JSON.");
+  }
+  var def = defs ? (defs[p.attr.toLowerCase()] || null) : null;
+  var label = (core ? "" : p.uri + ":") + (def ? def.name : p.attr) + (p.sub ? "." + p.sub : "");
+  if (!def && core) { note(ctx, "flag", "\"" + p.attr + "\" is not in the core schemas; a custom schema may define it. Its shape is inferred from the JSON (an array means multi-valued)."); }
+  if (!def && !core && defs) { note(ctx, "flag", "\"" + p.attr + "\" is not in the enterprise User extension schema; a custom schema may define it. Its shape is inferred from the JSON."); }
+  if (def && def.flag && def.name !== "schemas") { note(ctx, "info", def.name + ": " + def.flag); }
+  var L = {
+    core: core, uri: p.uri, def: def, label: label, sub: p.sub || null,
+    subDef: def && def.sub && p.sub ? (def.sub[p.sub.toLowerCase()] || null) : null,
+    cont: function (create) {
+      if (core) { return ctx.res; }
+      var k = keyIn(ctx, ctx.res, p.uri);
+      if (!k) {
+        if (!create) { return null; }
+        setProp(ctx.res, p.uri, {}); k = p.uri;
+      }
+      var o = ctx.res[k];
+      if (!isObj(o)) { throw new Fail("invalidValue", "The resource key \"" + k + "\" holds a " + (Array.isArray(o) ? "array" : typeof o) + ", not the extension object.", "rpValue"); }
+      if (create) { ensureSchema(ctx, p.uri); }
+      return o;
+    },
+    get: function () { var c = L.cont(false); if (!c) { return undefined; } var k = keyIn(ctx, c, p.attr); return k ? c[k] : undefined; },
+    set: function (v) { var c = L.cont(true); var k = keyIn(ctx, c, p.attr); setProp(c, k || (def ? def.name : p.attr), v); },
+    del: function () { var c = L.cont(false); if (!c) { return; } var k = keyIn(ctx, c, p.attr); if (k) { delete c[k]; } }
+  };
+  if (L.sub && def && def.sub && !L.subDef) { note(ctx, "flag", "\"" + L.sub + "\" is not a sub-attribute of " + def.name + " in the embedded schema; a custom schema may define it."); }
+  if (L.subDef && L.subDef.flag) { note(ctx, "info", def.name + "." + L.subDef.name + ": " + L.subDef.flag); }
+  return L;
+}
+
+/* ---------- value checks ---------- */
+var TYPE_LABEL = { string: "a JSON string", reference: "a JSON string (reference)", binary: "a JSON string (base64)", dateTime: "a JSON string (dateTime)", boolean: "the JSON literal true or false", integer: "a JSON number with no fraction", decimal: "a JSON number", complex: "a JSON object" };
+function typeOk(type, v) {
+  if (type === "string" || type === "reference" || type === "binary" || type === "dateTime") { return typeof v === "string"; }
+  if (type === "boolean") { return typeof v === "boolean"; }
+  if (type === "integer") { return typeof v === "number" && Number.isInteger(v); }
+  if (type === "decimal") { return typeof v === "number"; }
+  if (type === "complex") { return isObj(v); }
+  return true;
+}
+function checkSimple(ctx, label, def, v) {
+  if (!def || v === null) { return; }
+  if (typeOk(def.type, v)) { return; }
+  if (def.type === "boolean" && typeof v === "string" && /^(true|false)$/i.test(v)) {
+    ctx.reading = true;
+    rule(ctx, "bool");
+    note(ctx, "reading", "Two readings. RFC 7643 2.3 Table 1 maps Boolean to the RFC 7159 section 3 literal, and this value arrived as the JSON string " + JSON.stringify(v) + ", so the literal result is 400 invalidValue (RFC 7644 3.12, \"not compatible with the operation or attribute type\"). RFC 7643 2.3.2 also says \"A boolean has no case sensitivity or uniqueness.\", and that sentence is sometimes read as permitting it.");
+  }
+  throw new Fail("invalidValue", label + " has type " + def.type + ", so the value must be " + TYPE_LABEL[def.type] + "; got " + short(v) + ".", "rpValue");
+}
+function checkComplex(ctx, label, def, v) {
+  if (!isObj(v)) { throw new Fail("invalidValue", label + " is complex, so each value must be a JSON object of sub-attributes; got " + short(v) + ".", "rpValue"); }
+  Object.keys(v).forEach(function (k) {
+    var sd = def && def.sub ? (def.sub[k.toLowerCase()] || null) : null;
+    if (def && def.sub && !sd) { note(ctx, "flag", "\"" + k + "\" is not a sub-attribute of " + def.name + " in the embedded schema; a custom schema may define it."); }
+    if (sd && sd.flag) { note(ctx, "info", def.name + "." + sd.name + ": " + sd.flag); }
+    if (isObj(v[k]) || Array.isArray(v[k])) {
+      if (sd) { throw new Fail("invalidValue", label + "." + k + " has type " + sd.type + "; a sub-attribute cannot hold " + (Array.isArray(v[k]) ? "an array" : "an object") + " (RFC 7643 2.3.8).", "rpValue"); }
+    }
+    checkSimple(ctx, label + "." + k, sd, v[k]);
+  });
+}
+function checkItem(ctx, L, v) {
+  var def = L.def;
+  if (!def) { return; }
+  if (def.type === "complex") { checkComplex(ctx, L.label, def, v); } else { checkSimple(ctx, L.label, def, v); }
+}
+function stripNulls(v) {
+  if (!isObj(v)) { return clone(v); }
+  var o = {};
+  Object.keys(v).forEach(function (k) { if (v[k] !== null) { setProp(o, k, clone(v[k])); } });
+  return o;
+}
+function normFor(v, def) {
+  if (Array.isArray(v)) { return v.map(function (x) { return normFor(x, def); }); }
+  if (isObj(v)) {
+    var keys = Object.keys(v).filter(function (k) { return v[k] !== null; }).sort(function (a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : a.toLowerCase() > b.toLowerCase() ? 1 : 0; });
+    var o = {};
+    keys.forEach(function (k) { var sd = def && def.sub ? def.sub[k.toLowerCase()] : null; setProp(o, k.toLowerCase(), normFor(v[k], sd || null)); });
+    return o;
+  }
+  if (typeof v === "string" && def && def.type === "string" && !def.ce) { return v.toLowerCase(); }
+  return v;
+}
+function sameValue(a, b, def) { return JSON.stringify(normFor(a, def)) === JSON.stringify(normFor(b, def)); }
+function isPrimaryTrue(rec) { return isObj(rec) && getCI(rec, "primary") === true; }
+function primaryFix(ctx, L, arr, newIdx) {
+  var setTrue = newIdx.filter(function (i) { return isPrimaryTrue(arr[i]); });
+  if (!setTrue.length) { return; }
+  if (setTrue.length > 1) { rule(ctx, "primaryOnce"); throw new Fail("invalidValue", "More than one value of " + L.label + " would carry primary true.", "primaryOnce"); }
+  var changed = 0;
+  arr.forEach(function (rec, i) {
+    if (i === setTrue[0] || !isPrimaryTrue(rec)) { return; }
+    var k = getKeys(rec, "primary")[0];
+    var nr = clone(rec); setProp(nr, k, false); arr[i] = nr; changed++;
+  });
+  rule(ctx, "primary");
+  note(ctx, "info", changed ? "primary was set to false on " + changed + " other value" + (changed > 1 ? "s" : "") + " of " + L.label + "." : "No other value of " + L.label + " carried primary true. Values without a primary member already read as false (RFC 7643 2.4).");
+}
+function checkMut(ctx, L, def, existing, newVal, label) {
+  if (!def) { return; }
+  if (def.mut === "readOnly") { rule(ctx, "mut"); throw new Fail("mutability", label + " is readOnly.", "mut"); }
+  if (def.mut === "immutable" && assigned(existing) && !sameValue(existing, newVal, def)) {
+    rule(ctx, "mut");
+    if (L && L.def && L.def.name === "members") { rule(ctx, "members"); }
+    throw new Fail("mutability", label + " is immutable and already has a value (" + short(existing) + ").", "mut");
+  }
+  if (def.mut === "immutable" && !assigned(existing) && newVal !== undefined) {
+    rule(ctx, "mut");
+    note(ctx, "info", label + " is immutable but had no previous value, which 3.5.2 allows.");
+  }
+}
+function assignNull(ctx, L) {
+  rule(ctx, "unassign");
+  var cur = L.get();
+  if (!assigned(cur)) { note(ctx, "info", L.label + " was already unassigned."); return; }
+  if (L.def && L.def.req) { rule(ctx, "rmMut"); throw new Fail("mutability", L.label + " is required, so it cannot become unassigned.", "rmMut"); }
+  L.del();
+}
+
+/* ---------- add (RFC 7644 3.5.2.1) ---------- */
+function addAttr(ctx, L, v, verb) {
+  var def = L.def, cur = L.get(), exists = assigned(cur);
+  if (def && def.mut === "readOnly") { rule(ctx, "mut"); throw new Fail("mutability", L.label + " is readOnly.", "mut"); }
+  if (v === null || (Array.isArray(v) && v.length === 0)) { return assignNull(ctx, L); }
+  var multi = def ? def.multi : (Array.isArray(v) || Array.isArray(cur));
+  if (multi) {
+    var vals = Array.isArray(v) ? v : [v];
+    if (!Array.isArray(v)) { note(ctx, "info", "The value for multi-valued " + L.label + " is not an array, so it is read as one new value."); }
+    vals.forEach(function (x) { checkItem(ctx, L, x); });
+    var arr = exists ? (Array.isArray(cur) ? cur.slice() : [cur]) : [], added = [];
+    rule(ctx, "add4");
+    if (!exists) { rule(ctx, "add2"); }
+    vals.forEach(function (x) {
+      var xx = stripNulls(x);
+      if (arr.some(function (y) { return sameValue(y, xx, def); })) { rule(ctx, "add8"); note(ctx, "info", L.label + " already contains " + short(xx) + ", so nothing is added for it."); }
+      else { arr.push(xx); added.push(arr.length - 1); }
+    });
+    if (def && def.name === "members" && added.length) { rule(ctx, "members"); }
+    if (added.length) { primaryFix(ctx, L, arr, added); L.set(arr); }
+    return;
+  }
+  var complex = def ? def.type === "complex" : isObj(v);
+  if (complex) {
+    rule(ctx, "add3");
+    checkComplex(ctx, L.label, def, v);
+    if (!exists || !isObj(cur)) {
+      rule(ctx, exists ? "add7" : "add2");
+      Object.keys(v).forEach(function (k) { var sd = def && def.sub ? def.sub[k.toLowerCase()] : null; if (sd && sd.mut === "readOnly") { rule(ctx, "mut"); throw new Fail("mutability", L.label + "." + sd.name + " is readOnly.", "mut"); } });
+      L.set(stripNulls(v));
+      return;
+    }
+    var merged = clone(cur);
+    Object.keys(v).forEach(function (k) {
+      var sd = def && def.sub ? (def.sub[k.toLowerCase()] || null) : null;
+      var ek = keyIn(ctx, merged, k), old = ek ? merged[ek] : undefined;
+      checkMut(ctx, null, sd, old, v[k], L.label + "." + (sd ? sd.name : k));
+      if (v[k] === null) { if (ek) { delete merged[ek]; } } else { setProp(merged, ek || (sd ? sd.name : k), clone(v[k])); }
+    });
+    note(ctx, "reading-soft", "Bullet 3 asks for a set of sub-attributes, and this tool merges them: listed sub-attributes are set, others are kept. Bullets 3 and 7 (\"If the target location exists, the value is replaced\") also admit replacing the whole complex value.");
+    if (Object.keys(merged).length) { L.set(merged); } else { L.del(); }
+    return;
+  }
+  checkSimple(ctx, L.label, def, v);
+  if (isObj(v) || Array.isArray(v)) { note(ctx, "flag", L.label + " receives a structured value with no schema to check it against."); }
+  checkMut(ctx, L, def, cur, v, L.label);
+  if (exists) {
+    if (sameValue(cur, v, def)) { rule(ctx, "add8"); return; }
+    rule(ctx, "add5"); rule(ctx, "add7"); L.set(clone(v)); return;
+  }
+  rule(ctx, "add2"); rule(ctx, "add6"); L.set(clone(v));
+}
+function writeSub(ctx, L, v, bulletsNew, bulletsOld) {
+  var def = L.def;
+  if (def && def.multi) { throw new Undef("No rule in RFC 7644 3.5.2 addresses a sub-attribute of the multi-valued attribute " + def.name + " without a value filter, so " + L.label + " is not applied.", "path"); }
+  if (def && def.type !== "complex") { throw new Fail("invalidPath", def.name + " is " + def.type + ", not complex, so it has no sub-attribute \"" + L.sub + "\".", "invalidPath"); }
+  if (def && def.mut === "readOnly") { rule(ctx, "mut"); throw new Fail("mutability", def.name + " is readOnly.", "mut"); }
+  var parent = L.get();
+  if (assigned(parent) && !isObj(parent)) { throw new Fail("invalidPath", L.label + " addresses a sub-attribute, but the current value of the parent is " + short(parent) + ".", "invalidPath"); }
+  var sd = L.subDef;
+  if (isObj(v) || Array.isArray(v)) { throw new Fail("invalidValue", L.label + " is a sub-attribute; it cannot hold " + (Array.isArray(v) ? "an array" : "an object") + " (RFC 7643 2.3.8).", "rpValue"); }
+  checkSimple(ctx, L.label, sd, v);
+  var np = assigned(parent) ? clone(parent) : {};
+  var ek = keyIn(ctx, np, L.sub), old = ek ? np[ek] : undefined;
+  checkMut(ctx, L, sd, old, v, L.label);
+  if (v === null) {
+    rule(ctx, "unassign");
+    if (ek) { delete np[ek]; }
+  } else {
+    if (assigned(old) && sameValue(old, v, sd)) { bulletsOld.forEach(function (b) { if (b === "add8") { rule(ctx, b); } }); return; }
+    (assigned(old) ? bulletsOld : bulletsNew).forEach(function (b) { if (b !== "add8") { rule(ctx, b); } });
+    if (!assigned(parent)) { rule(ctx, bulletsNew[0]); }
+    setProp(np, ek || (sd ? sd.name : L.sub), v);
+  }
+  if (Object.keys(np).length) { L.set(np); } else { L.del(); }
+}
+function readingKeys(ctx, k) {
+  if (ctx.mode === "intent") {
+    note(ctx, "info", "The key \"" + k + "\" names the attribute " + k + ", as Microsoft's sample uses it.");
+    return;
+  }
+  ctx.reading = true;
+  rule(ctx, "attr310");
+  note(ctx, "reading", "Two readings of the key \"" + k + "\". Reading A: the keys of the value object are attribute names, and the RFC 7643 2.1 ATTRNAME rule (a letter, then letters, digits, $, - or _) has no \".\" or \":\", so this key is not an attribute name and the value gives it no defined target. Reading B: RFC 7644 3.10 says all operations share one scheme for referencing attributes, {urn}:{Attribute name}.{Sub-Attribute name}, so the key addresses " + k + ". The shape is not labelled invalid. This tool carries reading B forward.");
+}
+function applySet(ctx, obj, verb, scopeUri) {
+  if (!isObj(obj)) { throw new Fail("invalidValue", "With no path, \"value\" must be a JSON object of attributes; got " + short(obj) + ".", verb === "add" ? "add1" : "rp1"); }
+  var keys = Object.keys(obj);
+  if (verb === "replace" && !keys.length) { throw new Fail("invalidValue", "With no path, \"value\" must list one or more attributes to replace.", "rp1"); }
+  keys.forEach(function (k) {
+    var r = resolveName(k, ctx.known), p;
+    if (r.err) {
+      note(ctx, "flag", "\"" + k + "\" is neither an attribute name nor an attribute path. It is applied as a custom attribute with that exact key.");
+      p = { uri: scopeUri || null, attr: k, sub: null };
+    } else if (r.extObject) {
+      if (scopeUri) { throw new Fail("invalidValue", "An extension object cannot sit inside another extension object.", "rpValue"); }
+      if (!isObj(obj[k])) { throw new Fail("invalidValue", "The value under the extension URN \"" + k + "\" must be a JSON object.", "rpValue"); }
+      var cur = getCI(ctx.res, r.uri);
+      if (!assigned(cur)) { setProp(ctx.res, r.uri, {}); }
+      ensureSchema(ctx, r.uri);
+      applySet(ctx, obj[k], verb, r.uri);
+      return;
+    } else {
+      if (scopeUri && (r.uri || r.sub)) { if (r.uri) { throw new Fail("invalidValue", "\"" + k + "\" carries a schema URN inside the extension object \"" + scopeUri + "\".", "rpValue"); } }
+      if ((r.uri && !scopeUri) || r.sub) { readingKeys(ctx, k); }
+      p = { uri: r.uri || scopeUri || null, attr: r.attr, sub: r.sub };
+    }
+    var L = locate(ctx, p);
+    if (verb === "add") {
+      if (p.sub) { writeSub(ctx, L, obj[k], ["add2", "add6"], ["add5", "add7", "add8"]); } else { addAttr(ctx, L, obj[k], verb); }
+    } else {
+      if (p.sub) { replaceSub(ctx, L, obj[k]); } else { replaceAttr(ctx, L, obj[k]); }
+    }
+    if (p.uri && !isCore(p.uri)) { ensureSchema(ctx, p.uri); }
+  });
+}
+function doAdd(ctx, p, value, hasValue) {
+  if (!hasValue) { rule(ctx, "add0"); throw new Fail("invalidValue", "add has no \"value\" member.", "add0"); }
+  if (!p) { rule(ctx, "add1"); ctx.target = "the resource itself (no path)"; return applySet(ctx, value, "add", null); }
+  if (p.filter) {
+    ctx.target = p.raw;
+    rule(ctx, "addNone");
+    throw new Undef("UNDEFINED under RFC 7644: an add whose path carries a value filter. 3.5.2.1 defines no rule for it, so the operation is not applied. Microsoft's pages document no intent for this shape either.", "addNone");
+  }
+  if (p.extObject) { ctx.target = "the extension object " + p.uri; rule(ctx, "add3"); if (!assigned(getCI(ctx.res, p.uri))) { setProp(ctx.res, p.uri, {}); } ensureSchema(ctx, p.uri); return applySet(ctx, value, "add", p.uri); }
+  var L = locate(ctx, p);
+  ctx.target = L.label;
+  if (p.sub) { return writeSub(ctx, L, value, ["add2", "add6"], ["add5", "add7", "add8"]); }
+  if (p.uri && !isCore(p.uri)) { ensureSchema(ctx, p.uri); }
+  return addAttr(ctx, L, value, "add");
+}
+
+/* ---------- remove (RFC 7644 3.5.2.2) ---------- */
+function matchScope(def) { return { record: true, defs: def && def.sub ? def.sub : null, primDef: def && !def.sub ? def : null }; }
+function runFilter(ctx, filter, rec, def) {
+  try { return evalFilter(filter, rec, matchScope(def)); }
+  catch (e) { if (e && e.ferr) { rule(ctx, e.rule); throw new Fail(e.scimType, e.msg, e.rule); } throw e; }
+}
+function doRemove(ctx, p, hasValue) {
+  if (!p) { rule(ctx, "rm1"); ctx.target = "(no path)"; throw new Fail("noTarget", "remove has no \"path\".", "rm1"); }
+  if (hasValue) { note(ctx, "headline", "This operation carries a \"value\" member. No remove rule in RFC 7644 3.5.2.2 reads a \"value\" member, so it plays no part in the literal result."); }
+  if (p.extObject) {
+    ctx.target = "the extension object " + p.uri;
+    var k = keyIn(ctx, ctx.res, p.uri);
+    if (!k || !assigned(ctx.res[k])) { note(ctx, "info", "The extension object is already unassigned."); return; }
+    rule(ctx, "rm2"); delete ctx.res[k];
+    note(ctx, "info", "\"schemas\" is not changed: RFC 7644 removes no URN from it implicitly.");
+    return;
+  }
+  var L = locate(ctx, p), def = L.def, cur = L.get(), exists = assigned(cur);
+  ctx.target = p.filter ? L.label + "[" + filterToString(p.filter) + "]" + (p.fsub ? "." + p.fsub : "") : L.label;
+  if (!p.filter) {
+    if (p.sub) {
+      if (def && def.multi) { throw new Undef("No rule in RFC 7644 3.5.2.2 addresses a sub-attribute of the multi-valued attribute " + def.name + " without a value filter, so " + L.label + " is not removed.", "path"); }
+      if (def && def.mut === "readOnly") { rule(ctx, "rmMut"); throw new Fail("mutability", def.name + " is readOnly.", "rmMut"); }
+      var sd = L.subDef;
+      var old = isObj(cur) ? getCI(cur, p.sub) : undefined;
+      if (!assigned(old)) { ctx.reading = true; rule(ctx, "noTarget"); note(ctx, "reading", L.label + " is already unassigned. No bullet of 3.5.2.2 covers removing an unassigned attribute; this tool reports no change. The 3.12 noTarget description, \"did not yield an attribute or attribute value that could be operated on\", can be read to apply."); return; }
+      if (sd && sd.mut === "readOnly") { rule(ctx, "rmMut"); throw new Fail("mutability", L.label + " is readOnly.", "rmMut"); }
+      if (sd && sd.mut === "immutable") { rule(ctx, "mut"); throw new Fail("mutability", L.label + " is immutable and has a value.", "mut"); }
+      rule(ctx, "rm2");
+      var np = clone(cur); delete np[keyIn(ctx, np, p.sub)];
+      if (Object.keys(np).length) { L.set(np); } else { L.del(); note(ctx, "info", "No sub-attributes remain, so " + (def ? def.name : p.attr) + " is unassigned."); }
+      return;
+    }
+    if (!exists) { ctx.reading = true; rule(ctx, "noTarget"); note(ctx, "reading", L.label + " is already unassigned. No bullet of 3.5.2.2 covers removing an unassigned attribute; this tool reports no change. The 3.12 noTarget description, \"did not yield an attribute or attribute value that could be operated on\", can be read to apply."); return; }
+    if (def && (def.mut === "readOnly" || def.req)) { rule(ctx, "rmMut"); throw new Fail("mutability", L.label + " is " + (def.req ? "required" : "readOnly") + ".", "rmMut"); }
+    var multi = def ? def.multi : Array.isArray(cur);
+    rule(ctx, multi ? "rm3" : "rm2");
+    if (multi && Array.isArray(cur)) { note(ctx, "info", "All " + cur.length + " value" + (cur.length === 1 ? "" : "s") + " of " + L.label + " are removed and the attribute is unassigned."); }
+    L.del();
+    return;
+  }
+  if ((def && !def.multi) || (!def && exists && !Array.isArray(cur))) {
+    rule(ctx, "path");
+    throw new Fail("invalidPath", "A value filter selects values of a multi-valued attribute, and " + L.label + " is single-valued.", "path");
+  }
+  if (def && def.mut === "readOnly") { rule(ctx, "rmMut"); throw new Fail("mutability", L.label + " is readOnly.", "rmMut"); }
+  var arr = exists ? (Array.isArray(cur) ? cur : [cur]) : [];
+  var hits = [];
+  arr.forEach(function (rec, ix) { if (runFilter(ctx, p.filter, rec, def)) { hits.push(ix); } });
+  if (!hits.length) {
+    ctx.reading = true;
+    rule(ctx, "rmNone"); rule(ctx, "noTarget");
+    note(ctx, "reading", "The filter matches no value. Default: no change and success, per the 3.5.2.2 text quoted. The 3.12 noTarget description, \"This occurs when the specified \"path\" value contains a filter that yields no match\", can be read to apply instead.");
+    return;
+  }
+  if (p.fsub) {
+    var sd2 = def && def.sub ? (def.sub[p.fsub.toLowerCase()] || null) : null;
+    rule(ctx, "path"); rule(ctx, "rm5");
+    var na = arr.slice(), removed = 0;
+    hits.forEach(function (ix) {
+      var rec = na[ix];
+      if (!isObj(rec)) { return; }
+      var ek = keyIn(ctx, rec, p.fsub);
+      if (!ek || !assigned(rec[ek])) { return; }
+      if (sd2 && sd2.mut === "readOnly") { rule(ctx, "rmMut"); throw new Fail("mutability", L.label + "." + sd2.name + " is readOnly.", "rmMut"); }
+      if (sd2 && sd2.mut === "immutable") { rule(ctx, "mut"); if (def && def.name === "members") { rule(ctx, "members"); } throw new Fail("mutability", L.label + "." + sd2.name + " is immutable and has a value.", "mut"); }
+      var nr = clone(rec); delete nr[ek]; na[ix] = nr; removed++;
+    });
+    if (!removed) { note(ctx, "info", "No matched record carried " + p.fsub + "."); return; }
+    L.set(na);
+    return;
+  }
+  var onlyValue = filterAttrs(p.filter).every(function (a) { return a === "value"; });
+  rule(ctx, onlyValue ? "rm4" : "rm5");
+  if (def && def.name === "members") { rule(ctx, "members"); }
+  var rest = arr.filter(function (r, ix) { return hits.indexOf(ix) < 0; });
+  note(ctx, "info", hits.length + " value" + (hits.length === 1 ? "" : "s") + " matched and " + (hits.length === 1 ? "is" : "are") + " removed; " + rest.length + " remain.");
+  if (!rest.length) {
+    if (def && def.req) { rule(ctx, "rmMut"); throw new Fail("mutability", L.label + " is required, so it cannot become unassigned.", "rmMut"); }
+    L.del(); note(ctx, "info", "No values remain, so " + L.label + " is unassigned.");
+  } else { L.set(rest); }
+}
+
+/* ---------- replace (RFC 7644 3.5.2.3) ---------- */
+function replaceAttr(ctx, L, v) {
+  var def = L.def, cur = L.get(), exists = assigned(cur);
+  if (def && def.mut === "readOnly") { rule(ctx, "mut"); throw new Fail("mutability", L.label + " is readOnly.", "mut"); }
+  if (!exists && v !== null && !(Array.isArray(v) && !v.length)) { rule(ctx, "rp4"); note(ctx, "info", L.label + " does not exist, so bullet 4 treats the replace as an add."); return addAttr(ctx, L, v, "replace"); }
+  if (v === null || (Array.isArray(v) && v.length === 0)) { return assignNull(ctx, L); }
+  var multi = def ? def.multi : (Array.isArray(v) || Array.isArray(cur));
+  if (multi) {
+    var vals = Array.isArray(v) ? v : [v];
+    if (!Array.isArray(v)) { note(ctx, "info", "The value for multi-valued " + L.label + " is not an array, so it is read as a one-value list."); }
+    vals.forEach(function (x) { checkItem(ctx, L, x); });
+    rule(ctx, "rp3");
+    var arr = vals.map(stripNulls);
+    if (def && def.name === "members") { rule(ctx, "members"); }
+    primaryFix(ctx, L, arr, arr.map(function (x, i) { return i; }));
+    if (deepEq(arr, Array.isArray(cur) ? cur : [cur])) { note(ctx, "info", "The new list equals the current one."); }
+    L.set(arr);
+    return;
+  }
+  var complex = def ? def.type === "complex" : (isObj(v) && isObj(cur));
+  if (complex) {
+    rule(ctx, "rp5");
+    checkComplex(ctx, L.label, def, v);
+    if (!isObj(cur)) { L.set(stripNulls(v)); return; }
+    var merged = clone(cur);
+    Object.keys(v).forEach(function (k) {
+      var sd = def && def.sub ? (def.sub[k.toLowerCase()] || null) : null;
+      var ek = keyIn(ctx, merged, k), old = ek ? merged[ek] : undefined;
+      checkMut(ctx, null, sd, old, v[k], L.label + "." + (sd ? sd.name : k));
+      if (v[k] === null) { if (ek) { delete merged[ek]; } } else { setProp(merged, ek || (sd ? sd.name : k), clone(v[k])); }
+    });
+    if (Object.keys(merged).length) { L.set(merged); } else { L.del(); }
+    return;
+  }
+  checkSimple(ctx, L.label, def, v);
+  checkMut(ctx, L, def, cur, v, L.label);
+  rule(ctx, "rp2");
+  L.set(clone(v));
+}
+function replaceSub(ctx, L, v) {
+  var parent = L.get();
+  if (L.def && L.def.multi) { return writeSub(ctx, L, v, [], []); }
+  if (!assigned(parent)) { rule(ctx, "rp4"); note(ctx, "info", (L.def ? L.def.name : "The parent") + " does not exist, so bullet 4 treats the replace as an add."); return writeSub(ctx, L, v, ["add2", "add6"], ["add5", "add7", "add8"]); }
+  rule(ctx, "rp5");
+  return writeSub(ctx, L, v, ["rp5"], ["rp2"]);
+}
+function doReplace(ctx, p, value, hasValue) {
+  if (!hasValue) { rule(ctx, "rpValue"); throw new Fail("invalidValue", "replace has no \"value\" member, and every replace bullet replaces with the value given.", "rpValue"); }
+  if (!p) { rule(ctx, "rp1"); ctx.target = "the resource itself (no path)"; return applySet(ctx, value, "replace", null); }
+  if (p.extObject) {
+    ctx.target = "the extension object " + p.uri;
+    rule(ctx, "rp5");
+    if (!isObj(value)) { throw new Fail("invalidValue", "The extension object takes a JSON object of its attributes.", "rpValue"); }
+    if (!assigned(getCI(ctx.res, p.uri))) { setProp(ctx.res, p.uri, {}); }
+    ensureSchema(ctx, p.uri);
+    return applySet(ctx, value, "replace", p.uri);
+  }
+  var L = locate(ctx, p), def = L.def;
+  ctx.target = p.filter ? L.label + "[" + filterToString(p.filter) + "]" + (p.fsub ? "." + p.fsub : "") : L.label;
+  if (!p.filter) {
+    if (p.uri && !isCore(p.uri)) { ensureSchema(ctx, p.uri); }
+    if (p.sub) { return replaceSub(ctx, L, value); }
+    return replaceAttr(ctx, L, value);
+  }
+  var cur = L.get();
+  if ((def && !def.multi) || (!def && assigned(cur) && !Array.isArray(cur))) {
+    rule(ctx, "path");
+    throw new Fail("invalidPath", "A value filter selects values of a multi-valued attribute, and " + L.label + " is single-valued.", "path");
+  }
+  if (def && def.mut === "readOnly") { rule(ctx, "mut"); throw new Fail("mutability", L.label + " is readOnly.", "mut"); }
+  if (!assigned(cur)) {
+    ctx.reading = true;
+    rule(ctx, "rp4"); rule(ctx, "rp8"); rule(ctx, "addNone");
+    note(ctx, "reading", L.label + " is entirely absent, and two bullets conflict. Bullet 4 treats a path to an attribute that does not exist as an \"add\", and that add then carries a filtered path, which 3.5.2.1 does not define (erratum 8097). Bullet 8 gives 400 noTarget when a valuePath matches no record. This tool reports bullet 8, the rule written for filters, and flags the conflict.");
+    throw new Fail("noTarget", "No value of " + L.label + " exists for the filter " + filterToString(p.filter) + " to match.", "rp8");
+  }
+  var arr = Array.isArray(cur) ? cur.slice() : [cur], hits = [];
+  arr.forEach(function (rec, ix) { if (runFilter(ctx, p.filter, rec, def)) { hits.push(ix); } });
+  if (!hits.length) { rule(ctx, "rp8"); throw new Fail("noTarget", "The filter " + filterToString(p.filter) + " matches no value of " + L.label + ".", "rp8"); }
+  if (p.fsub) {
+    rule(ctx, "rp7");
+    var sd = def && def.sub ? (def.sub[p.fsub.toLowerCase()] || null) : null;
+    if (def && def.sub && !sd) { note(ctx, "flag", "\"" + p.fsub + "\" is not a sub-attribute of " + def.name + " in the embedded schema; a custom schema may define it."); }
+    if (sd && sd.flag) { note(ctx, "info", def.name + "." + sd.name + ": " + sd.flag); }
+    if (isObj(value) || Array.isArray(value)) { throw new Fail("invalidValue", "A sub-attribute cannot hold " + (Array.isArray(value) ? "an array" : "an object") + " (RFC 7643 2.3.8).", "rpValue"); }
+    checkSimple(ctx, L.label + "." + p.fsub, sd, value);
+    hits.forEach(function (ix) {
+      var rec = isObj(arr[ix]) ? clone(arr[ix]) : {};
+      var ek = keyIn(ctx, rec, p.fsub), old = ek ? rec[ek] : undefined;
+      checkMut(ctx, L, sd, old, value, L.label + "[...]." + (sd ? sd.name : p.fsub));
+      if (value === null) { if (ek) { delete rec[ek]; } } else { setProp(rec, ek || (sd ? sd.name : p.fsub), value); }
+      arr[ix] = rec;
+    });
+    note(ctx, "info", "The sub-attribute was replaced in " + hits.length + " matched record" + (hits.length === 1 ? "" : "s") + ".");
+    if (p.fsub.toLowerCase() === "primary" && value === true) { primaryFix(ctx, L, arr, hits); }
+    L.set(arr);
+    return;
+  }
+  rule(ctx, "rp6");
+  note(ctx, "reading-soft", "Bullet 6 says matching record values SHALL be replaced, and this tool replaces each matched record whole. Bullet 5's wording for a complex target (\"Sub-attributes that are not specified in the \"value\" parameter are left unchanged\") can be read to apply to each record instead.");
+  checkItem(ctx, L, value);
+  if (value === null) { throw new Fail("invalidValue", "A null value cannot replace a matched record.", "rpValue"); }
+  var nv = stripNulls(value);
+  hits.forEach(function (ix) {
+    if (def && def.sub) {
+      Object.keys(def.sub).forEach(function (sk) {
+        var sdd = def.sub[sk];
+        if (sdd.mut === "readOnly" && (assigned(getCI(nv, sk)) || assigned(getCI(arr[ix], sk))) && !sameValue(getCI(arr[ix], sk), getCI(nv, sk), sdd)) { rule(ctx, "mut"); throw new Fail("mutability", L.label + "." + sdd.name + " is readOnly.", "mut"); }
+        if (sdd.mut === "immutable") { checkMut(ctx, L, sdd, getCI(arr[ix], sk), getCI(nv, sk), L.label + "[...]." + sdd.name); }
+      });
+    }
+    arr[ix] = clone(nv);
+  });
+  if (def && def.name === "members") { rule(ctx, "members"); }
+  primaryFix(ctx, L, arr, hits);
+  L.set(arr);
+}
+
+/* ---------- intent overrides, only for Microsoft-documented shapes ---------- */
+function shapesOf(o) {
+  var out = [];
+  if (!isObj(o)) { return out; }
+  var opv = getCI(o, "op");
+  if (typeof opv !== "string") { return out; }
+  var low = opv.toLowerCase(), path = getCI(o, "path"), hasPath = getKeys(o, "path").length > 0, val = getCI(o, "value");
+  if (low === "remove" && path === "members" && Array.isArray(val) && val.length && val.every(function (x) { return isObj(x) && getKeys(x, "value").length > 0; })) { out.push("i"); }
+  if (low === "replace" && typeof path === "string" && path.toLowerCase() === "active" && typeof val === "string" && val.toLowerCase() === "false") { out.push("ii"); }
+  if (low === "replace" && !hasPath && isObj(val) && Object.keys(val).some(function (k) { if (k.indexOf(".") >= 0) { return true; } if (!/^urn:/i.test(k)) { return false; } var r = resolveName(k); return !r.err && !r.extObject; })) { out.push("iii"); }
+  if (opv === "Add" || opv === "Replace" || opv === "Remove") { out.push("iv"); }
+  return out;
+}
+function intentRemoveMembers(ctx, value) {
+  rule(ctx, "msRemove");
+  var L = locate(ctx, { attr: "members" });
+  ctx.target = "members (only the listed values)";
+  var cur = L.get(), arr = assigned(cur) ? (Array.isArray(cur) ? cur : [cur]) : [];
+  var ids = value.map(function (x) { return getCI(x, "value"); }).filter(function (x) { return typeof x === "string"; });
+  var rest = arr.filter(function (rec) { var v = isObj(rec) ? getCI(rec, "value") : rec; return !(typeof v === "string" && ids.some(function (id) { return id.toLowerCase() === v.toLowerCase(); })); });
+  note(ctx, "info", "members.value has caseExact false in the embedded schema, so listed ids compare without case.");
+  if (rest.length === arr.length) { note(ctx, "info", "None of the listed members is in the group, so nothing changes."); return; }
+  note(ctx, "info", (arr.length - rest.length) + " listed member" + (arr.length - rest.length === 1 ? " is" : "s are") + " removed; " + rest.length + " remain.");
+  if (rest.length) { L.set(rest); } else { L.del(); }
+}
+function intentActive(ctx, value) {
+  rule(ctx, "msDisable");
+  var L = locate(ctx, { attr: "active" });
+  ctx.target = L.label;
+  var b = value.toLowerCase() === "true";
+  L.set(b);
+  note(ctx, "info", "active becomes the boolean " + b + ".");
+}
+
+/* ---------- one operation ---------- */
+function applyOne(ctx, o, dupKeys) {
+  if (!isObj(o)) { rule(ctx, "opmember"); throw new Fail(null, "The operation is not a JSON object; got " + short(o) + ".", "opmember"); }
+  var dupOp = dupKeys.filter(function (k) { return k.toLowerCase() === "op"; });
+  dupKeys.filter(function (k) { return k.toLowerCase() !== "op"; }).forEach(function (k) {
+    note(ctx, "warn", "The key \"" + k + "\" appears more than once in this operation. JSON.parse would silently keep the last one; this tool keeps the last one and flags it.");
+  });
+  var opKeys = getKeys(o, "op");
+  if (!opKeys.length) { rule(ctx, "opmember"); throw new Fail(null, "The operation has no \"op\" member.", "opmember"); }
+  if (opKeys.length > 1 || dupOp.length) { rule(ctx, "opmember"); throw new Fail(null, "The operation has more than one \"op\" member (" + (dupOp.length ? "a duplicate key" : opKeys.join(", ")) + ").", "opmember"); }
+  if (opKeys[0] !== "op") { note(ctx, "info", "The member is spelled \"" + opKeys[0] + "\"; attribute names are case insensitive (RFC 7643 2.1), so it is read as \"op\"."); }
+  var rawOp = o[opKeys[0]];
+  if (typeof rawOp !== "string") { rule(ctx, "opmember"); throw new Fail(null, "The op value is not a string; got " + short(rawOp) + ".", "opmember"); }
+  var low = rawOp.toLowerCase();
+  if (low !== "add" && low !== "remove" && low !== "replace") { rule(ctx, "opmember"); throw new Fail(null, "\"" + rawOp + "\" is not add, remove or replace.", "opmember"); }
+  if (rawOp !== low) {
+    rule(ctx, "opmember");
+    if (ctx.strict && ctx.mode === "literal") { throw new Fail(null, "rejected: op is not one of the listed values (\"" + rawOp + "\" is not \"add\", \"remove\" or \"replace\" as written). RFC 7644 names no scimType for this case.", "opmember"); }
+    if (ctx.mode === "literal") { note(ctx, "flag", "\"" + rawOp + "\" is not one of the three listed literals. RFC 7644 3.5.2 states no case rule for op values. This tool evaluates op case-insensitively by default; the strict literal op option rejects instead."); }
+  }
+  var pk = getKeys(o, "path"), vk = getKeys(o, "value");
+  [pk, vk].forEach(function (ks) {
+    if (ks.length > 1) { note(ctx, "warn", "Keys that differ only in case: " + ks.join(", ") + ". Using \"" + ks[0] + "\"."); }
+    if (ks.length && ks[0] !== ks[0].toLowerCase()) { note(ctx, "info", "The member is spelled \"" + ks[0] + "\" and read case-insensitively."); }
+  });
+  Object.keys(o).forEach(function (k) { var l = k.toLowerCase(); if (l !== "op" && l !== "path" && l !== "value") { note(ctx, "info", "The member \"" + k + "\" is not part of a PATCH operation (3.5.2) and is ignored."); } });
+  var hasPath = pk.length > 0, hasValue = vk.length > 0;
+  var path = hasPath ? o[pk[0]] : undefined, value = hasValue ? o[vk[0]] : undefined;
+  var norm = { op: low };
+  if (hasPath) { norm.path = path; }
+  if (hasValue) { norm.value = value; }
+  ctx.norm = norm;
+  if (hasPath && typeof path !== "string") { rule(ctx, "invalidPath"); throw new Fail("invalidPath", "\"path\" is not a string; got " + short(path) + ".", "invalidPath"); }
+  var p = null;
+  if (hasPath) {
+    var pr = parsePath(path, ctx.known);
+    if (pr.err) { rule(ctx, pr.err.rule); ctx.target = path; throw new Fail(pr.err.scimType, pr.err.msg, pr.err.rule, pr.err.refusal ? ["refusal-" + pr.err.refusal] : []); }
+    p = pr.p;
+  }
+  if (ctx.mode === "intent") {
+    var sh = shapesOf(o);
+    if (sh.indexOf("i") >= 0) { return intentRemoveMembers(ctx, value); }
+    if (sh.indexOf("ii") >= 0) { return intentActive(ctx, value); }
+    if (sh.indexOf("iii") >= 0) { rule(ctx, "msReplace"); }
+    if (sh.indexOf("iv") >= 0) { rule(ctx, "msCase"); }
+  }
+  if (low === "add") { return doAdd(ctx, p, value, hasValue); }
+  if (low === "remove") { return doRemove(ctx, p, hasValue); }
+  return doReplace(ctx, p, value, hasValue);
+}
+
+function runTrack(original, ops, kind, mode, strict, dupsByOp) {
+  var state = clone(original), steps = [], failure = null, undefAt = [], readAt = [];
+  for (var i = 0; i < ops.length; i++) {
+    var before = clone(state), work = clone(state);
+    var ctx = { res: work, kind: kind, mode: mode, strict: strict, known: knownUrns(work), rules: [], ruleIds: {}, notes: [], target: "", norm: null, reading: false };
+    var st = { i: i, before: before, after: null, outcome: "", rules: ctx.rules, notes: ctx.notes, error: null, ctx: ctx };
+    try {
+      applyOne(ctx, ops[i], dupsByOp[i] || []);
+      st.after = work;
+      st.outcome = deepEq(before, work) ? "nochange" : "applied";
+      state = work;
+    } catch (e) {
+      if (e && e.undef) { st.outcome = "undefined"; st.error = e; st.after = before; undefAt.push(i); }
+      else if (e && e.fail) { st.outcome = "failed"; st.error = e; st.after = before; failure = { at: i, scimType: e.scimType, detail: e.detail, rule: e.rule }; }
+      else { throw e; }
+    }
+    st.target = ctx.target; st.norm = ctx.norm;
+    if (ctx.reading) { readAt.push(i); }
+    steps.push(st);
+    if (failure) { break; }
+  }
+  return { steps: steps, failure: failure, final: failure ? clone(original) : state, undefAt: undefAt, readAt: readAt, mode: mode };
+}
+
+/* ---------- whole request ---------- */
+function evaluate(resText, patchText, opts) {
+  opts = opts || {};
+  var out = { inputErr: null, reqNotes: [], reqFail: null, ops: [], shapes: [], literal: null, intent: null, original: null, kind: null };
+  var rj = parseJSON(resText);
+  if (!rj.ok) { out.inputErr = { which: "resource", msg: rj.error }; return out; }
+  if (!isObj(rj.value)) { out.inputErr = { which: "resource", msg: "The resource must be a JSON object; got " + (Array.isArray(rj.value) ? "an array" : short(rj.value)) + "." }; return out; }
+  var pj = parseJSON(patchText);
+  if (!pj.ok) { out.inputErr = { which: "patch", msg: pj.error }; return out; }
+  if (!isObj(pj.value)) { out.inputErr = { which: "patch", msg: "The PATCH body must be a JSON object; got " + (Array.isArray(pj.value) ? "an array" : short(pj.value)) + "." }; return out; }
+  rj.dups.forEach(function (d) { out.reqNotes.push({ kind: "warn", text: "Resource: the key \"" + d.key + "\" appears more than once in the same object" + (d.path.length ? " under " + d.path.join(".") : "") + ". The last one is used." }); });
+  var res = rj.value, body = pj.value;
+  out.original = clone(res);
+  out.kind = detectKind(res, out.reqNotes);
+  var sk = getKeys(body, "schemas"), ok = getKeys(body, "Operations");
+  var sch = sk.length ? body[sk[0]] : undefined;
+  var hasPatchOp = Array.isArray(sch) && sch.some(function (u) { return typeof u === "string" && u.toLowerCase() === URN.PATCH.toLowerCase(); });
+  if (!hasPatchOp) {
+    out.reqFail = { scimType: null, detail: "The request \"schemas\" " + (sch === undefined ? "is missing" : "does not contain " + URN.PATCH) + ".", rule: "reqSchemas" };
+    return out;
+  }
+  if (!sch.some(function (u) { return u === URN.PATCH; })) { out.reqNotes.push({ kind: "info", text: "The PatchOp URN in \"schemas\" differs from the RFC spelling only in case." }); }
+  if (!ok.length) { out.reqFail = { scimType: null, detail: "The request has no \"Operations\" member.", rule: "reqOps" }; return out; }
+  if (ok.length > 1) { out.reqNotes.push({ kind: "warn", text: "Keys that differ only in case: " + ok.join(", ") + ". Using \"" + ok[0] + "\"." }); }
+  if (ok[0] !== "Operations") { out.reqNotes.push({ kind: "flag", text: "The member is spelled \"" + ok[0] + "\". RFC 7644 3.5.2 writes \"Operations\"; attribute names are case insensitive (RFC 7643 2.1), so it is accepted." }); }
+  var ops = body[ok[0]];
+  if (!Array.isArray(ops) || !ops.length) { out.reqFail = { scimType: null, detail: "\"" + ok[0] + "\" must be an array of one or more operations; got " + short(ops) + ".", rule: "reqOps" }; return out; }
+  Object.keys(body).forEach(function (k) { var l = k.toLowerCase(); if (l !== "schemas" && l !== "operations") { out.reqNotes.push({ kind: "info", text: "The request member \"" + k + "\" is not part of a PatchOp body and is ignored." }); } });
+  var dupsByOp = [];
+  pj.dups.forEach(function (d) {
+    if (d.path.length === 2 && d.path[0] === ok[0] && typeof d.path[1] === "number") { (dupsByOp[d.path[1]] = dupsByOp[d.path[1]] || []).push(d.key); }
+    else { out.reqNotes.push({ kind: "warn", text: "PATCH body: the key \"" + d.key + "\" appears more than once in the same object" + (d.path.length ? " under " + d.path.join(".") : "") + ". The last one is used." }); }
+  });
+  out.ops = ops;
+  out.shapes = ops.map(shapesOf);
+  out.literal = runTrack(res, ops, out.kind, "literal", !!opts.strictOp, dupsByOp);
+  if (out.shapes.some(function (s) { return s.length; })) { out.intent = runTrack(res, ops, out.kind, "intent", false, dupsByOp); }
+  return out;
+}
+var REQ_RULES = {
+  reqSchemas: ["RFC 7644 3.5.2", "The body of each request MUST contain the \"schemas\" attribute with the URI value of \"urn:ietf:params:scim:api:messages:2.0:PatchOp\"."],
+  reqOps: ["RFC 7644 3.5.2", "The body of an HTTP PATCH request MUST contain the attribute \"Operations\", whose value is an array of one or more PATCH operations."]
+};
+function ruleText(id) { return R[id] || REQ_RULES[id] || null; }
+function errorBody(f) {
+  var b = { schemas: [URN.ERROR] };
+  if (f.scimType) { b.scimType = f.scimType; }
+  b.detail = f.detail;
+  b.status = "400";
+  return b;
+}
+function diff(a, b, path, out) {
+  out = out || [];
+  if (deepEq(a, b)) { return out; }
+  if (isObj(a) && isObj(b)) {
+    var keys = Object.keys(a).concat(Object.keys(b).filter(function (k) { return !hasOwn(a, k); }));
+    keys.forEach(function (k) {
+      var p = path ? path + "." + k : k;
+      if (!hasOwn(b, k)) { out.push({ k: "-", p: p, v: a[k] }); }
+      else if (!hasOwn(a, k)) { out.push({ k: "+", p: p, v: b[k] }); }
+      else { diff(a[k], b[k], p, out); }
+    });
+    return out;
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    a.forEach(function (x) { if (!b.some(function (y) { return deepEq(x, y); })) { out.push({ k: "-", p: path + "[]", v: x }); } });
+    b.forEach(function (y) { if (!a.some(function (x) { return deepEq(x, y); })) { out.push({ k: "+", p: path + "[]", v: y }); } });
+    if (!out.length) { out.push({ k: "~", p: path, from: "order", to: "changed" }); }
+    return out;
+  }
+  out.push({ k: "~", p: path || "(resource)", from: a, to: b });
+  return out;
+}
+
+/* ---------- presets (original identifiers, structures from the cited samples) ---------- */
+var SRC_KNOWN = "https://learn.microsoft.com/en-us/entra/identity/app-provisioning/application-provisioning-config-problem-scim-compatibility";
+var SRC_TUT = "https://learn.microsoft.com/en-us/entra/identity/app-provisioning/use-scim-to-provision-users-and-groups";
+var SRC_7644 = "https://www.rfc-editor.org/rfc/rfc7644.txt";
+function J(v) { return JSON.stringify(v, null, 2); }
+function patch(ops) { return { schemas: [URN.PATCH], Operations: ops }; }
+var GROUP3 = { schemas: [URN.GROUP], id: "g-5c1e", displayName: "Platform Admins", members: [
+  { value: "u-a17", display: "Ana Ruiz" }, { value: "u-b42", display: "Bo Lindqvist" }, { value: "u-c88", display: "Chidi Okafor" }] };
+var USER_WORK = { schemas: [URN.USER], id: "u-b42", externalId: "ext-0042", userName: "bo@example.com", displayName: "Bo Lindqvist",
+  name: { givenName: "Bo", familyName: "Lindqvist" }, emails: [{ value: "bo@example.com", type: "work", primary: true }] };
+var USER_HOME = { schemas: [URN.USER], id: "u-b42", externalId: "ext-0042", userName: "bo@example.com", displayName: "Bo Lindqvist",
+  name: { givenName: "Bo", familyName: "Lindqvist" }, emails: [{ value: "bo@example.org", type: "home" }] };
+var FLAG_ON_REPLACE = patch([
+  { op: "replace", path: "emails[type eq \"work\"].value", value: "bo.lindqvist@example.com" },
+  { op: "replace", value: { displayName: "Bo L.", "name.givenName": "Bosse", "name.familyName": "Lindqvist", "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:employeeNumber": "E-1042" } }]);
+var PRESETS = [
+  { id: "p1", title: "1. Entra member removal, flag off (path members plus a value array)", src: SRC_KNOWN + " (Requests made to remove a group member, Without feature flag) and " + SRC_TUT + " (Update Group [Remove Members])",
+    res: GROUP3, patch: patch([{ op: "Remove", path: "members", value: [{ value: "u-a17" }] }]) },
+  { id: "p2", title: "2. The same removal, flag on (filtered path)", src: SRC_KNOWN + " (Requests made to remove a group member, With feature flag)",
+    res: GROUP3, patch: patch([{ op: "remove", path: "members[value eq \"u-a17\"]" }]) },
+  { id: "p3", title: "3. Legacy disable user (Replace, active, \"False\")", src: SRC_KNOWN + " (Requests made to disable users, Without feature flag)",
+    res: { schemas: [URN.USER], id: "u-a17", userName: "ana.ruiz@example.com", active: true }, patch: patch([{ op: "Replace", path: "active", value: "False" }]) },
+  { id: "p4", title: "4. Flag-on multi-attribute replace, user with a work email", src: SRC_KNOWN + " (Requests to replace multiple attributes, With feature flag)",
+    res: USER_WORK, patch: FLAG_ON_REPLACE },
+  { id: "p5", title: "5. The same replace, user with a home email only", src: SRC_KNOWN + " (Requests to replace multiple attributes, With feature flag)",
+    res: USER_HOME, patch: FLAG_ON_REPLACE },
+  { id: "p6", title: "6. Remove emails[type eq \"work\" and value ew \"example.com\"]", src: SRC_7644 + " (3.5.2.2, removal of a value from a complex multi-valued attribute)",
+    res: { schemas: [URN.USER], id: "u-a17", userName: "ana.ruiz@example.com", emails: [
+      { value: "ana@example.com", type: "work", primary: true }, { value: "ana@example.org", type: "home" }, { value: "ana.ruiz@example.net", type: "work" }] },
+    patch: patch([{ op: "remove", path: "emails[type eq \"work\" and value ew \"example.com\"]" }]) },
+  { id: "p7", title: "7. Replace addresses[type eq \"work\"] with primary true", src: SRC_7644 + " (3.5.2.3, change a User's entire work address)",
+    res: { schemas: [URN.USER], id: "u-c88", userName: "chidi@example.com", addresses: [
+      { type: "home", streetAddress: "12 Elm Row", locality: "Riverton", region: "VA", postalCode: "22000", country: "US", primary: true },
+      { type: "work", streetAddress: "400 Market St", locality: "Riverton", region: "VA", postalCode: "22001", country: "US" }] },
+    patch: patch([{ op: "replace", path: "addresses[type eq \"work\"]", value: { type: "work", streetAddress: "1 Harbor Way", locality: "Riverton", region: "VA", postalCode: "22002", country: "US", primary: true } }]) },
+  { id: "p8", title: "8. Atomic rollback: add a member, then replace a display that matches nobody", src: SRC_7644 + " (3.5.2, atomic requests; 3.5.2.3 bullet 8)",
+    res: GROUP3, patch: patch([{ op: "add", path: "members", value: [{ value: "u-d09", display: "Dana Wu" }] }, { op: "replace", path: "members[value eq \"nobody\"].display", value: "Nobody" }]) }
+];
+
+/* ---------- self test ---------- */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function fuzz(count, seed) {
+  var rnd = mulberry32(seed), pass = 0, firstFail = null;
+  function ri(n) { return Math.floor(rnd() * n); }
+  function kw(w) { var r = ri(3); return r === 0 ? w : r === 1 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1); }
+  function gen(d) {
+    if (d <= 0 || rnd() < 0.3) { return { t: "leaf", k: "k" + ri(4), v: "v" + ri(2), op: ri(2) ? "eq" : "ne" }; }
+    var r = ri(5);
+    if (r === 0) { return { t: "not", e: gen(d - 1) }; }
+    return { t: r < 3 ? "and" : "or", l: gen(d - 1), r: gen(d - 1) };
+  }
+  function oracle(n, rec) {
+    if (n.t === "leaf") { var has = hasOwn(rec, n.k), eq = has && rec[n.k] === n.v; return n.op === "eq" ? eq : !eq; }
+    if (n.t === "not") { return !oracle(n.e, rec); }
+    if (n.t === "and") { return oracle(n.l, rec) && oracle(n.r, rec); }
+    return oracle(n.l, rec) || oracle(n.r, rec);
+  }
+  var PREC = { or: 1, and: 2, not: 3, leaf: 4 };
+  function print(n, need) {
+    var s;
+    if (n.t === "leaf") { s = n.k + " " + kw(n.op) + " \"" + n.v + "\""; }
+    else if (n.t === "not") { s = kw("not") + (ri(2) ? " (" : "(") + print(n.e, 0) + ")"; }
+    else if (n.t === "and") { s = print(n.l, 2) + " " + kw("and") + " " + print(n.r, 2); }
+    else { s = print(n.l, 1) + " " + kw("or") + " " + print(n.r, 1); }
+    return PREC[n.t] < need ? "(" + s + ")" : s;
+  }
+  for (var c = 0; c < count; c++) {
+    var tree = gen(1 + ri(5)), text = print(tree, 0), rec = {};
+    for (var k = 0; k < 4; k++) { var x = ri(3); if (x < 2) { setProp(rec, "k" + k, "v" + x); } }
+    var want = oracle(tree, rec), got;
+    try { got = evalFilter(parseFilter(text, true), rec, { record: true, defs: null, primDef: null }); } catch (e) { got = "error: " + (e && (e.msg || e.message)); }
+    if (got === want) { pass++; } else if (!firstFail) { firstFail = { text: text, rec: rec, want: want, got: got }; }
+  }
+  return { pass: pass, total: count, firstFail: firstFail };
+}
+function selfTest() {
+  var results = [];
+  function check(name, want, got) { var pass = deepEq(want, got); results.push({ name: name, want: short(want), got: short(got), pass: pass }); return pass; }
+  function ev(res, p, opts) { return evaluate(JSON.stringify(res), JSON.stringify(p), opts); }
+  function lit(res, p, opts) { return ev(res, p, opts).literal; }
+  function verdict(t) { return t.failure ? "400 " + (t.failure.scimType || "(no scimType)") : (t.undefAt.length ? "undefined" : "success"); }
+  function vals(arr) { return (arr || []).map(function (x) { return isObj(x) ? getCI(x, "value") : x; }); }
+  function hasRule(t, i, id) { return t.steps[i].rules.indexOf(id) >= 0; }
+  function hasNote(t, i, kind) { return t.steps[i].notes.some(function (n) { return n.kind === kind; }); }
+  var U = function (extra) { var o = { schemas: [URN.USER], id: "u-1", userName: "pat@example.com" }; Object.keys(extra || {}).forEach(function (k) { o[k] = extra[k]; }); return o; };
+  var G = function () { return clone(GROUP3); };
+  var t;
+
+  /* URN and path resolution */
+  var r1 = resolveName("urn:ietf:params:scim:schemas:core:2.0:User:name.givenName");
+  check("URN: core User name.givenName resolves to name.givenName", ["name", "givenName", URN.USER], [r1.attr, r1.sub, r1.uri]);
+  var r2 = resolveName(URN.ENT);
+  check("URN: the enterprise URN alone is the extension object, not attribute \"User\"", [true, null], [r2.extObject, r2.attr]);
+  var r3 = resolveName("URN:IETF:PARAMS:SCIM:SCHEMAS:EXTENSION:ENTERPRISE:2.0:USER:employeeNumber");
+  check("URN: schema URN matches case-insensitively", [URN.ENT, "employeeNumber"], [r3.uri, r3.attr]);
+  t = lit(U(), patch([{ op: "replace", path: URN.ENT, value: { costCenter: "4130" } }]));
+  check("URN: replace on the extension object writes inside it and adds the URN to schemas", ["4130", true], [getCI(t.final[URN.ENT] || {}, "costCenter"), t.final.schemas.indexOf(URN.ENT) >= 0]);
+  t = lit(U({ name: { givenName: "Pat" } }), patch([{ op: "replace", path: "urn:ietf:params:scim:schemas:core:2.0:User:name.givenName", value: "Patricia" }]));
+  check("URN: fully qualified core path writes name.givenName", "Patricia", t.final.name.givenName);
+
+  /* filter parsing and matching */
+  t = lit({ schemas: [URN.GROUP], displayName: "G", members: [{ value: "a]b" }, { value: "c" }] }, patch([{ op: "remove", path: "members[value eq \"a]b\"]" }]));
+  check("Filter: ']' inside a quoted string does not end the bracket", ["c"], vals(t.final.members));
+  t = lit(G(), patch([{ op: "remove", path: "members[value EQ \"u-a17\"]" }]));
+  check("Filter: operator EQ matches case-insensitively", ["u-b42", "u-c88"], vals(t.final.members));
+  t = lit(G(), patch([{ op: "remove", path: "MEMBERS[VALUE eq \"u-a17\"]" }]));
+  check("Filter: attribute and sub-attribute names match case-insensitively", ["u-b42", "u-c88"], vals(t.final.members));
+  t = lit({ schemas: [URN.GROUP], displayName: "G", members: [{ value: "abc" }, { value: "x" }] }, patch([{ op: "remove", path: "members[value eq \"ABC\"]" }]));
+  check("caseExact: members.value is caseExact false, so \"ABC\" matches \"abc\"", ["x"], vals(t.final.members));
+  var mgr = {}; mgr[URN.ENT] = { manager: { value: "abc" } };
+  var known = FIXED_URNS;
+  check("caseExact: manager.value is caseExact true (erratum 8472), so \"ABC\" does not match \"abc\"", [false, true],
+    [evalFilter(parseFilter(URN.ENT + ":manager.value eq \"ABC\""), mgr, { resource: true, defs: DEFS.User, known: known }),
+     evalFilter(parseFilter(URN.ENT + ":manager.value eq \"abc\""), mgr, { resource: true, defs: DEFS.User, known: known })]);
+  var pf = parseFilter("a eq \"1\" or b eq \"1\" and c eq \"1\"", true);
+  check("Precedence: and binds tighter than or (erratum 4670 reading)", "or(cmp, and)", pf.type + "(" + pf.l.type + ", " + pf.r.type + ")");
+  check("Filter: not with a space before the parenthesis parses (erratum 7319)", "not", parseFilter("not (type eq \"work\")", true).type);
+  function ferr(s, inB) { try { parseFilter(s, inB); return "parsed"; } catch (e) { return e.scimType + (e.refusal ? " refusal " + e.refusal : ""); } }
+  check("Filter: not without parentheses is invalidFilter", "invalidFilter", ferr("not type eq \"work\"", true));
+  check("Refusal (a): value path nested in a value filter (erratum 4690)", "invalidFilter refusal a", ferr("type eq \"work\" and x[y eq \"z\"]", true));
+  check("Refusal (c): unknown operator regex", "invalidFilter refusal c", ferr("value regex \".*\"", true));
+  check("Filter: compValue True (capitalised) is not a JSON literal", "invalidFilter", ferr("primary eq True", true));
+  t = lit(U({ emails: [{ value: "a@example.com", primary: true }] }), patch([{ op: "remove", path: "emails[primary gt true]" }]));
+  check("Table 3: gt on a boolean attribute is 400 invalidFilter", "400 invalidFilter", verdict(t));
+  t = lit(U(), patch([{ op: "replace", path: "schemas eq \"" + URN.USER + "\"", value: "x" }]));
+  check("Refusal (b): bare attrExp as a PATCH path is 400 invalidPath (erratum 7122)", ["400 invalidPath", true], [verdict(t), t.steps[0].error.extra.indexOf("refusal-b") >= 0]);
+  t = lit(U({ emails: [{ value: "a@example.com", type: "work" }] }), patch([{ op: "remove", path: "emails[type eq \"work\" and x[y eq \"z\"]]" }]));
+  check("Refusal (a) through a PATCH path is 400 invalidFilter", "400 invalidFilter", verdict(t));
+
+  /* request level */
+  var bad = ev(U(), { Operations: [{ op: "add", path: "title", value: "x" }] });
+  check("Request: missing PatchOp schemas is 400 with no scimType", [true, null], [!!bad.reqFail, bad.reqFail && bad.reqFail.scimType]);
+  var low = ev(U(), { schemas: [URN.PATCH], operations: [{ op: "add", path: "title", value: "x" }] });
+  check("Request: \"operations\" in another case is accepted and flagged", ["x", true], [low.literal.final.title, low.reqNotes.some(function (n) { return n.kind === "flag"; })]);
+  var empty = ev(U(), { schemas: [URN.PATCH], Operations: [] });
+  check("Request: an empty Operations array is 400", true, !!empty.reqFail);
+  var dup = evaluate(JSON.stringify(U()), "{\"schemas\":[\"" + URN.PATCH + "\"],\"Operations\":[{\"op\":\"add\",\"op\":\"remove\",\"path\":\"title\"}]}");
+  check("Request: a duplicate op key (hidden by JSON.parse) fails the request", "400 (no scimType)", verdict(dup.literal));
+  var dup2 = evaluate(JSON.stringify(U()), "{\"schemas\":[\"" + URN.PATCH + "\"],\"Operations\":[{\"op\":\"add\",\"path\":\"title\",\"value\":\"a\",\"value\":\"b\"}]}");
+  check("Request: a duplicate value key is flagged and the last one used", ["b", true], [dup2.literal.final.title, hasNote(dup2.literal, 0, "warn")]);
+  var broken = evaluate("{\"schemas\": [", "{}");
+  check("Invalid JSON reports a position and does not throw", ["resource", true], [broken.inputErr && broken.inputErr.which, /line 1, column/.test(broken.inputErr && broken.inputErr.msg)]);
+  t = lit(U(), patch([{ op: "add", path: "title" }]));
+  check("add with no value member is 400 invalidValue", "400 invalidValue", verdict(t));
+  t = lit(U(), patch([{ op: "replace", path: "title" }]));
+  check("replace with no value member is 400 invalidValue", "400 invalidValue", verdict(t));
+  t = lit(U(), patch([{ op: "Add", path: "title", value: "Lead" }]), { strictOp: true });
+  check("Strict literal op: \"Add\" is rejected with no scimType", "400 (no scimType)", verdict(t));
+  t = lit(U(), patch([{ op: "Add", path: "title", value: "Lead" }]));
+  check("Default op handling: \"Add\" is evaluated and flagged", ["Lead", true], [t.final.title, hasNote(t, 0, "flag")]);
+
+  /* add, 3.5.2.1 bullets */
+  t = lit(U(), patch([{ op: "add", value: { nickName: "Pat", title: "Lead" } }]));
+  check("add bullet 1: no path adds each listed attribute", ["Pat", "Lead", true], [t.final.nickName, t.final.title, hasRule(t, 0, "add1")]);
+  t = lit(U(), patch([{ op: "add", path: "title", value: "Lead" }]));
+  check("add bullet 2: a target that does not exist is added", ["Lead", true], [t.final.title, hasRule(t, 0, "add2")]);
+  t = lit(U({ name: { familyName: "Lee" } }), patch([{ op: "add", path: "name", value: { givenName: "Pat" } }]));
+  check("add bullet 3: complex target takes sub-attributes and merges", [{ familyName: "Lee", givenName: "Pat" }, true], [t.final.name, hasRule(t, 0, "add3")]);
+  t = lit(U({ emails: [{ value: "a@example.com", type: "work" }] }), patch([{ op: "add", path: "emails", value: [{ value: "b@example.com", type: "home" }] }]));
+  check("add bullet 4: a multi-valued target gets a new value", ["a@example.com", "b@example.com"], vals(t.final.emails));
+  t = lit(U({ nickName: "P" }), patch([{ op: "add", path: "nickName", value: "Pat" }]));
+  check("add bullet 5: a single-valued target is replaced", ["Pat", true], [t.final.nickName, hasRule(t, 0, "add5")]);
+  t = lit(U(), patch([{ op: "add", path: "displayName", value: "Pat Lee" }]));
+  check("add bullet 6: an attribute with no value is added", ["Pat Lee", true], [t.final.displayName, hasRule(t, 0, "add6")]);
+  t = lit(U({ title: "Dev" }), patch([{ op: "add", path: "title", value: "Lead" }]));
+  check("add bullet 7: an existing target is replaced", ["Lead", true], [t.final.title, hasRule(t, 0, "add7")]);
+  t = lit(G(), patch([{ op: "add", path: "members", value: [{ value: "U-A17", display: "ana ruiz" }] }]));
+  check("add bullet 8: a value already present changes nothing", ["nochange", 3], [t.steps[0].outcome, t.final.members.length]);
+  t = lit(U({ emails: [{ value: "a@example.com", type: "work" }] }), patch([{ op: "add", path: "emails[type eq \"work\"].value", value: "b@example.com" }]));
+  check("add with a filtered path is UNDEFINED and not applied (erratum 8097)", ["undefined", "undefined", "a@example.com"], [t.steps[0].outcome, verdict(t), t.final.emails[0].value]);
+
+  /* remove, 3.5.2.2 bullets */
+  t = lit(U({ title: "Lead" }), patch([{ op: "remove" }]));
+  check("remove bullet 1: no path is 400 noTarget", "400 noTarget", verdict(t));
+  t = lit(U({ title: "Lead" }), patch([{ op: "remove", path: "title" }]));
+  check("remove bullet 2: a single-valued attribute becomes unassigned", [false, true], [hasOwn(t.final, "title"), hasRule(t, 0, "rm2")]);
+  t = lit(G(), patch([{ op: "remove", path: "members" }]));
+  check("remove bullet 3: multi-valued with no filter removes all values", [false, true], [hasOwn(t.final, "members"), hasRule(t, 0, "rm3")]);
+  t = lit(G(), patch([{ op: "remove", path: "members[value eq \"u-b42\"]" }]));
+  check("remove bullet 4: a filter comparing value removes the matched values", [["u-a17", "u-c88"], true], [vals(t.final.members), hasRule(t, 0, "rm4")]);
+  t = lit({ schemas: [URN.GROUP], displayName: "G", members: [{ value: "u-a17" }] }, patch([{ op: "remove", path: "members[value eq \"u-a17\"]" }]));
+  check("remove bullet 4: removing the last value leaves the attribute unassigned", false, hasOwn(t.final, "members"));
+  t = lit(U({ emails: [{ value: "a@example.com", type: "work" }, { value: "b@example.com", type: "home" }] }), patch([{ op: "remove", path: "emails[type eq \"home\"]" }]));
+  check("remove bullet 5: a filter on sub-attributes removes the matching records", [["a@example.com"], true], [vals(t.final.emails), hasRule(t, 0, "rm5")]);
+  t = lit(U({ emails: [{ value: "a@example.com", type: "work", display: "A" }] }), patch([{ op: "remove", path: "emails[type eq \"work\"].display" }]));
+  check("remove filter plus subAttr removes that sub-attribute from matched records", [{ value: "a@example.com", type: "work" }], t.final.emails);
+  t = lit(G(), patch([{ op: "remove", path: "members[value eq \"u-zzz\"]" }]));
+  check("remove with a filter that matches nothing: no change, success, reading flagged", ["success", "nochange", true], [verdict(t), t.steps[0].outcome, t.readAt.length === 1]);
+  t = lit(U(), patch([{ op: "remove", path: "userName" }]));
+  check("remove of required userName is 400 mutability", "400 mutability", verdict(t));
+  t = lit(G(), patch([{ op: "remove", path: "displayName" }]));
+  check("remove of required Group displayName is 400 mutability (erratum 5368)", "400 mutability", verdict(t));
+  t = lit(U(), patch([{ op: "remove", path: "id" }]));
+  check("remove of readOnly id is 400 mutability", "400 mutability", verdict(t));
+
+  /* replace, 3.5.2.3 bullets */
+  t = lit(U({ title: "Dev", nickName: "P" }), patch([{ op: "replace", value: { title: "Lead" } }]));
+  check("replace bullet 1: no path replaces the listed attributes only", ["Lead", "P", true], [t.final.title, t.final.nickName, hasRule(t, 0, "rp1")]);
+  t = lit(U({ title: "Dev" }), patch([{ op: "replace", path: "title", value: "Lead" }]));
+  check("replace bullet 2: a single-valued attribute is replaced", ["Lead", true], [t.final.title, hasRule(t, 0, "rp2")]);
+  t = lit(G(), patch([{ op: "replace", path: "members", value: [{ value: "u-z01" }] }]));
+  check("replace bullet 3: multi-valued with no filter is replaced wholesale", [["u-z01"], true], [vals(t.final.members), hasRule(t, 0, "rp3")]);
+  t = lit(U(), patch([{ op: "replace", path: "title", value: "Lead" }]));
+  check("replace bullet 4: a path to an attribute that does not exist is treated as add", ["Lead", true, true], [t.final.title, hasRule(t, 0, "rp4"), hasRule(t, 0, "add2")]);
+  t = lit(U({ name: { givenName: "Pat", familyName: "Lee" } }), patch([{ op: "replace", path: "name", value: { givenName: "Patricia" } }]));
+  check("replace bullet 5: complex target, unspecified sub-attributes left unchanged", [{ givenName: "Patricia", familyName: "Lee" }, true], [t.final.name, hasRule(t, 0, "rp5")]);
+  t = lit(U({ emails: [{ value: "a@example.com", type: "work", display: "A" }, { value: "b@example.com", type: "home" }] }), patch([{ op: "replace", path: "emails[type eq \"work\"]", value: { value: "c@example.com", type: "work" } }]));
+  check("replace bullet 6: each matched record is replaced whole", [[{ value: "c@example.com", type: "work" }, { value: "b@example.com", type: "home" }], true], [t.final.emails, hasRule(t, 0, "rp6")]);
+  t = lit(U({ addresses: [{ type: "work", streetAddress: "1 A St" }, { type: "work", streetAddress: "2 B St" }, { type: "home", streetAddress: "3 C St" }] }), patch([{ op: "replace", path: "addresses[type eq \"work\"].streetAddress", value: "9 Z St" }]));
+  check("replace bullet 7: the sub-attribute is replaced in all matched records", ["9 Z St", "9 Z St", "3 C St"], t.final.addresses.map(function (a) { return a.streetAddress; }));
+  t = lit(U({ emails: [{ value: "a@example.com", type: "home" }] }), patch([{ op: "replace", path: "emails[type eq \"work\"].value", value: "x@example.com" }]));
+  check("replace bullet 8: a filter with no match is 400 noTarget", "400 noTarget", verdict(t));
+  t = lit(U(), patch([{ op: "replace", path: "emails[type eq \"work\"].value", value: "x@example.com" }]));
+  check("replace with a filter on an absent attribute: bullets 4 and 8 conflict, noTarget carried, reading flagged", ["400 noTarget", true, true], [verdict(t), hasRule(t, 0, "rp4"), t.readAt.length === 1]);
+  t = lit(G(), patch([{ op: "replace", path: "members[value eq \"u-a17\"].value", value: "u-x00" }]));
+  check("Mutability: replacing members[...].value is 400 mutability (RFC 7643 4.2)", "400 mutability", verdict(t));
+  t = lit({ schemas: [URN.GROUP], displayName: "G", members: [{ value: "u-a17" }] }, patch([{ op: "replace", path: "members[value eq \"u-a17\"].display", value: "Ana" }]));
+  check("Mutability: an immutable sub-attribute with no previous value may be set", ["success", "Ana"], [verdict(t), t.final.members[0].display]);
+  t = lit(U(), patch([{ op: "replace", path: "groups", value: [{ value: "g-1" }] }]));
+  check("Mutability: readOnly groups is 400 mutability", "400 mutability", verdict(t));
+
+  /* cross-cutting */
+  t = lit(U({ emails: [{ value: "a@example.com", type: "work", primary: true }] }), patch([{ op: "add", path: "emails", value: [{ value: "b@example.com", type: "home", primary: true }] }]));
+  check("primary: setting true on one value sets false on the other (3.5.2 SHALL)", [false, true], [t.final.emails[0].primary, t.final.emails[1].primary]);
+  t = lit(U(), patch([{ op: "add", path: URN.ENT + ":employeeNumber", value: "E-1" }]));
+  check("Extension: adding by fully qualified name adds the URN to schemas", ["E-1", true], [t.final[URN.ENT].employeeNumber, t.final.schemas.indexOf(URN.ENT) >= 0]);
+  t = lit(U({ active: true }), patch([{ op: "replace", path: "active", value: "False" }]));
+  check("Type: active as the string \"False\" is 400 invalidValue, reading flagged", ["400 invalidValue", true], [verdict(t), t.readAt.length === 1]);
+  t = lit(U({ title: "Lead" }), patch([{ op: "replace", path: "title", value: null }]));
+  check("Null assigned to an attribute makes it unassigned (RFC 7643 2.5)", false, hasOwn(t.final, "title"));
+  t = lit(U(), patch([{ op: "add", path: "favoriteColor", value: "teal" }]));
+  check("An attribute not in the schemas is applied and flagged", ["teal", true], [t.final.favoriteColor, hasNote(t, 0, "flag")]);
+  t = lit({ schemas: [URN.USER], UserName: "pat@example.com" }, patch([{ op: "replace", path: "username", value: "pat2@example.com" }]));
+  check("Keys: the existing key spelling is kept on write", [["schemas", "UserName"], "pat2@example.com"], [Object.keys(t.final), t.final.UserName]);
+  t = lit({ schemas: [URN.USER], userName: "p", nickName: "a", nickname: "b" }, patch([{ op: "replace", path: "nickName", value: "c" }]));
+  check("Keys: two keys that differ only in case are flagged as ambiguous", true, hasNote(t, 0, "warn"));
+  t = lit(G(), patch([{ op: "add", path: "members", value: [{ value: "u-d09" }] }, { op: "remove", path: "members[value eq \"u-a17\"]" }]));
+  check("Sequential: each operation sees the previous result", ["u-b42", "u-c88", "u-d09"], vals(t.final.members));
+
+  /* presets */
+  var P = {};
+  PRESETS.forEach(function (p) { P[p.id] = ev(p.res, p.patch); });
+  check("Preset 1 literal: members unassigned (no remove rule reads value)", ["success", false, true], [verdict(P.p1.literal), hasOwn(P.p1.literal.final, "members"), hasNote(P.p1.literal, 0, "headline")]);
+  check("Preset 1 intent: two members left", ["u-b42", "u-c88"], vals(P.p1.intent.final.members));
+  check("Preset 1 shapes: (i) remove with value array and (iv) capitalised op", ["i", "iv"], P.p1.shapes[0]);
+  check("Preset 2: filtered removal leaves two members, no intent column", [["u-b42", "u-c88"], null], [vals(P.p2.literal.final.members), P.p2.intent]);
+  check("Preset 3 literal: 400 invalidValue, original restored", ["400 invalidValue", true], [verdict(P.p3.literal), P.p3.literal.final.active]);
+  check("Preset 3 intent: active becomes false", false, P.p3.intent.final.active);
+  var p4 = P.p4.literal.final;
+  check("Preset 4: work email value replaced, givenName set through the dotted key, extension written", ["bo.lindqvist@example.com", "Bosse", "E-1042", true, "success"],
+    [p4.emails[0].value, p4.name.givenName, p4[URN.ENT] && p4[URN.ENT].employeeNumber, p4.schemas.indexOf(URN.ENT) >= 0, verdict(P.p4.literal)]);
+  check("Preset 4: the dotted and URN keys are flagged as two readings", true, P.p4.literal.readAt.indexOf(1) >= 0);
+  check("Preset 5: home email only gives 400 noTarget and the original resource", ["400 noTarget", "Bo"], [verdict(P.p5.literal), P.p5.literal.final.name.givenName]);
+  check("Preset 6: only the work address ending in example.com is removed", ["ana@example.org", "ana.ruiz@example.net"], vals(P.p6.literal.final.emails));
+  check("Preset 7: work address replaced with primary true, home primary reset to false", [false, true, "1 Harbor Way"],
+    [P.p7.literal.final.addresses[0].primary, P.p7.literal.final.addresses[1].primary, P.p7.literal.final.addresses[1].streetAddress]);
+  check("Preset 8: op 1 succeeds, op 2 is noTarget, the whole request rolls back", ["applied", "failed", "400 noTarget", 3],
+    [P.p8.literal.steps[0].outcome, P.p8.literal.steps[1].outcome, verdict(P.p8.literal), P.p8.literal.final.members.length]);
+
+  /* precedence fuzz against an oracle */
+  var fz = fuzz(2500, 20261001);
+  results.push({ name: "Precedence fuzz: random and/or/not trees printed with minimal parentheses, parsed and compared with an oracle", want: fz.total + " of " + fz.total, got: fz.pass + " of " + fz.total + (fz.firstFail ? "; first failure " + short(fz.firstFail) : ""), pass: fz.pass === fz.total, fuzz: fz });
+
+  /* intent shapes: only the spellings Microsoft documents */
+  var sT = ev(U({ active: false }), patch([{ op: "replace", path: "active", value: "True" }]));
+  check("Shape (ii) needs the string False: replace active \"True\" gets no intent column", [[], null], [sT.shapes[0], sT.intent]);
+  var sF = ev(U({ active: true }), patch([{ op: "replace", path: "active", value: "False" }]));
+  check("Shape (ii): replace active \"False\" sets active to false in the intent column", [["ii"], false], [sF.shapes[0], sF.intent && sF.intent.final.active]);
+  check("Shape (iv) only for Add, Replace, Remove: \"aDD\" and \"ADD\" get no intent column", [[], [], ["iv"]],
+    [ev(U(), patch([{ op: "aDD", path: "title", value: "x" }])).shapes[0], ev(U(), patch([{ op: "ADD", path: "title", value: "x" }])).shapes[0], ev(U(), patch([{ op: "Add", path: "title", value: "x" }])).shapes[0]]);
+  t = lit(U({ emails: [{ type: "work", value: "a@example.com" }] }), patch([{ op: "remove", path: "emails[type eq \"work\" and value ew \"example.com\" or primary eq true]" }]));
+  check("Resolved target shows the grouping precedence implies", "emails[(type eq \"work\" and value ew \"example.com\") or primary eq true]", t.steps[0].target);
+
+  /* positive control: written to fail */
+  var control = deepEq(vals(P.p1.literal.final.members), ["u-b42", "u-c88"]);
+  results.push({ name: "Positive control: asserts the literal preset 1 result keeps two members (false on purpose)", want: "this assertion fails", got: control ? "it passed, so the suite is not checking anything" : "it failed, as designed", pass: !control, control: true });
+
+  return results;
+}
+
+return { URN: URN, parseJSON: parseJSON, parseFilter: parseFilter, parsePath: parsePath, resolveName: resolveName, evalFilter: evalFilter,
+  evaluate: evaluate, ruleText: ruleText, errorBody: errorBody, diff: diff, schemaRows: schemaRows, PRESETS: PRESETS, SHAPES: SHAPES, selfTest: selfTest, J: J, short: short };
+})();
+/* ==== CORE END ==== */
+
+/* ==== UI ==== */
+(function () {
+"use strict";
+if (typeof document === "undefined") { return; }
+function $(id) { return document.getElementById(id); }
+function h(tag, attrs, kids) {
+  var e = document.createElement(tag);
+  if (attrs) { Object.keys(attrs).forEach(function (k) { var v = attrs[k]; if (v === null || v === undefined || v === false) { return; } if (k === "class") { e.className = v; } else if (k === "text") { e.textContent = v; } else { e.setAttribute(k, v === true ? "" : String(v)); } }); }
+  (kids || []).forEach(function (c) { if (c === null || c === undefined) { return; } e.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+  return e;
+}
+function pre(v, label) { return h("pre", { class: "json", tabindex: "0", "aria-label": label || "JSON" }, [typeof v === "string" ? v : SCIM.J(v)]); }
+
+/* theme */
+var root = document.documentElement, tbtn = $("theme-toggle");
+function effective() { var t = root.getAttribute("data-theme"); if (t === "dark" || t === "light") { return t; } return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; }
+function label() { tbtn.textContent = effective() === "dark" ? "Use light theme" : "Use dark theme"; }
+tbtn.addEventListener("click", function () {
+  var next = effective() === "dark" ? "light" : "dark";
+  root.setAttribute("data-theme", next);
+  try { localStorage.setItem("theme", next); } catch (e) {}
+  label();
+});
+label();
+
+/* presets */
+var sel = $("preset");
+SCIM.PRESETS.forEach(function (p, i) { sel.appendChild(h("option", { value: String(i), text: p.title })); });
+function loadPreset(i) {
+  var p = SCIM.PRESETS[i];
+  $("res").value = SCIM.J(p.res);
+  $("patch").value = SCIM.J(p.patch);
+  $("preset-note").textContent = "Source of the structure: " + p.src + ". Identifiers and values are original to this page.";
+  run();
+}
+$("load").addEventListener("click", function () { loadPreset(Number(sel.value) || 0); });
+
+/* schema table */
+var tb = document.querySelector("#schema-table tbody");
+SCIM.schemaRows().forEach(function (r) {
+  tb.appendChild(h("tr", null, [h("td", { text: r.schema }), h("td", null, [h("code", { text: r.name })]), h("td", { text: r.type }), h("td", { text: r.multi }), h("td", { text: r.req }), h("td", { text: r.ce }), h("td", { text: r.mut }), h("td", { text: r.note })]));
+});
+
+/* rendering */
+var NOTE_BADGE = { info: ["info", "b-info"], warn: ["warning", "b-warn"], flag: ["flag", "b-warn"], reading: ["two readings", "b-warn"], "reading-soft": ["reading", "b-soft"], headline: ["value ignored", "b-err"], undefined: ["undefined", "b-warn"] };
+var OUTCOME = { applied: ["applied", "b-ok"], nochange: ["no change", "b-info"], failed: ["failed", "b-err"], undefined: ["UNDEFINED", "b-warn"] };
+function ruleSpan(r) {
+  if (r[2]) { return h("span", { class: "inferred", text: "Intent inferred from the sample (the page's reading, not Microsoft's wording): " + r[1] }); }
+  return h("span", { class: "quote", text: r[1] });
+}
+function ruleList(ids) {
+  var ul = h("ul", { class: "rules" });
+  ids.forEach(function (id) { var r = SCIM.ruleText(id); if (!r) { return; } ul.appendChild(h("li", null, [h("strong", { text: r[0] }), ruleSpan(r)])); });
+  return ids.length ? [h("h4", { text: "Rules applied" }), ul] : [];
+}
+function noteList(notes) {
+  if (!notes.length) { return []; }
+  var ul = h("ul", { class: "notes" });
+  notes.forEach(function (n) { var b = NOTE_BADGE[n.kind] || ["note", "b-info"]; ul.appendChild(h("li", null, [h("span", { class: "badge " + b[1], text: b[0] }), n.text])); });
+  return [h("h4", { text: "Notes" }), ul];
+}
+function diffList(a, b) {
+  var d = SCIM.diff(a, b, "");
+  if (!d.length) { return [h("p", { class: "note", text: "No change to the resource." })]; }
+  var ul = h("ul", { class: "diff", "aria-label": "Changes" });
+  d.forEach(function (x) {
+    if (x.k === "+") { ul.appendChild(h("li", { class: "d-add" }, ["+ " + x.p + ": " + SCIM.short(x.v)])); }
+    else if (x.k === "-") { ul.appendChild(h("li", { class: "d-del" }, ["- " + x.p + ": " + SCIM.short(x.v)])); }
+    else { ul.appendChild(h("li", { class: "d-chg" }, ["~ " + x.p + ": " + SCIM.short(x.from) + " to " + SCIM.short(x.to)])); }
+  });
+  return [h("h4", { text: "Changes" }), ul];
+}
+function column(st, title, cls, intentShapes) {
+  var col = h("section", { class: "col " + cls, "aria-label": title });
+  col.appendChild(h("h4", { text: title }));
+  if (!st) { col.appendChild(h("p", { class: "note", text: "Not evaluated: an earlier operation failed and the request stopped there." })); return col; }
+  var o = OUTCOME[st.outcome] || ["?", "b-info"];
+  col.appendChild(h("p", null, [h("span", { class: "badge " + o[1], text: o[0] })]));
+  if (intentShapes && intentShapes.length) {
+    var ul = h("ul", { class: "notes" });
+    intentShapes.forEach(function (s) { var r = SCIM.ruleText(SCIM.SHAPES[s].rule); ul.appendChild(h("li", null, ["Shape (" + s + "), " + SCIM.SHAPES[s].label + ". ", h("strong", { text: r[0] }), ruleSpan(r)])); });
+    col.appendChild(ul);
+  }
+  var dl = h("dl", { class: "kv" });
+  dl.appendChild(h("dt", { text: "Normalised op" })); dl.appendChild(h("dd", null, [h("code", { text: st.norm ? SCIM.short(st.norm) : "(not reached)" })]));
+  dl.appendChild(h("dt", { text: "Resolved target" })); dl.appendChild(h("dd", { text: st.target || "(none)" }));
+  col.appendChild(dl);
+  if (st.error) {
+    var box = h("div", { class: "errbox" });
+    if (st.error.fail) {
+      box.appendChild(h("p", { class: "what", text: "HTTP 400" + (st.error.scimType ? ", scimType " + st.error.scimType : ", no scimType named") }));
+      if ((st.error.extra || []).length) { box.appendChild(h("p", { class: "note", text: "Named refusal. See the refusal list below for both readings." })); }
+    } else {
+      box.appendChild(h("p", { class: "what", text: "UNDEFINED under RFC 7644" }));
+    }
+    box.appendChild(h("p", { text: st.error.detail }));
+    col.appendChild(box);
+  }
+  ruleList(st.rules).forEach(function (n) { col.appendChild(n); });
+  noteList(st.notes).forEach(function (n) { col.appendChild(n); });
+  diffList(st.before, st.after).forEach(function (n) { col.appendChild(n); });
+  var det = h("details", null, [h("summary", { text: "Resource after this operation" }), pre(st.after, "Resource after operation " + (st.i + 1))]);
+  col.appendChild(det);
+  return col;
+}
+function verdictBlock(track, title, original) {
+  var div;
+  if (track.failure) {
+    div = h("div", { class: "verdict err" });
+    div.appendChild(h("p", { class: "big", text: title + ": HTTP 400" + (track.failure.scimType ? ", scimType " + track.failure.scimType : ", no scimType named") + " at operation " + (track.failure.at + 1) }));
+    div.appendChild(h("p", { text: "The request is atomic (RFC 7644 3.5.2): the original resource is restored and no operation takes effect." }));
+    div.appendChild(h("p", { class: "note", text: "Error response body (RFC 7644 3.12):" }));
+    div.appendChild(pre(SCIM.errorBody(track.failure), title + " error body"));
+  } else {
+    div = h("div", { class: "verdict " + (track.undefAt.length || track.readAt.length ? "warn" : "ok") });
+    div.appendChild(h("p", { class: "big", text: title + ": success. RFC 7644 3.5.2: 200 OK with the resource, or 204 No Content." }));
+  }
+  if (track.undefAt.length) { div.appendChild(h("p", null, [h("span", { class: "badge b-warn", text: "depends on an undefined step" }), "Operation " + track.undefAt.map(function (i) { return i + 1; }).join(", ") + " has no rule in RFC 7644 and was not applied."])); }
+  if (track.readAt.length) { div.appendChild(h("p", null, [h("span", { class: "badge b-warn", text: "depends on a reading" }), "Operation " + track.readAt.map(function (i) { return i + 1; }).join(", ") + " depends on which of two readings of the text you take. The step names both."])); }
+  div.appendChild(h("details", null, [h("summary", { text: title + ": final resource" }), pre(track.final, title + " final resource")]));
+  return div;
+}
+function render(r) {
+  var out = $("out");
+  out.textContent = "";
+  if (r.inputErr) {
+    out.appendChild(h("div", { class: "errbox" }, [h("p", { class: "what", text: (r.inputErr.which === "resource" ? "SCIM resource" : "PATCH request") + ": not valid input" }), h("p", { text: r.inputErr.msg })]));
+    $("status").textContent = "Input error in the " + (r.inputErr.which === "resource" ? "resource" : "PATCH request") + " box.";
+    return;
+  }
+  if (r.reqNotes.length) { noteList(r.reqNotes).forEach(function (n) { out.appendChild(n); }); }
+  if (r.reqFail) {
+    var rr = SCIM.ruleText(r.reqFail.rule);
+    out.appendChild(h("div", { class: "verdict err" }, [
+      h("p", { class: "big", text: "HTTP 400, no scimType named. The request body is malformed." }),
+      h("p", { text: r.reqFail.detail }),
+      h("p", null, [h("strong", { text: rr[0] }), h("span", { class: "quote", text: rr[1] })]),
+      h("p", { class: "note", text: "RFC 7644 names no scimType for a malformed PATCH body: Table 9's invalidSyntax describes it but does not list PATCH, and invalidValue's \"A required value was missing\" can be read to apply." })]));
+    $("status").textContent = "Request rejected before any operation: " + r.reqFail.detail;
+    return;
+  }
+  out.appendChild(h("p", { class: "note", text: "Resource type: " + (r.kind || "unknown (no core schema)") + ". " + r.ops.length + " operation" + (r.ops.length === 1 ? "" : "s") + "." }));
+  out.appendChild(verdictBlock(r.literal, "Literal RFC 7644", r.original));
+  if (r.intent) { out.appendChild(verdictBlock(r.intent, "Sender's documented intent (Microsoft Learn)", r.original)); }
+  r.ops.forEach(function (op, i) {
+    var lit = r.literal.steps[i] || null, shapes = r.shapes[i] || [], showIntent = shapes.length > 0;
+    var art = h("article", { class: "step", "aria-labelledby": "op-h-" + i });
+    var opLabel = op && typeof op === "object" && !Array.isArray(op) ? String(op.op !== undefined ? op.op : (op.Op !== undefined ? op.Op : "?")) : "?";
+    var pathLabel = op && typeof op === "object" && !Array.isArray(op) && typeof op.path === "string" ? op.path : "(no path)";
+    art.appendChild(h("h3", { id: "op-h-" + i, text: "Operation " + (i + 1) + " of " + r.ops.length + ": " + opLabel + " " + pathLabel }));
+    art.appendChild(h("p", { class: "note", text: "Op as received:" }));
+    art.appendChild(pre(op, "Operation " + (i + 1) + " as received"));
+    var cols = h("div", { class: "cols" + (showIntent ? " both" : "") });
+    cols.appendChild(column(lit, "Literal RFC 7644", "lit", null));
+    if (showIntent) { cols.appendChild(column(r.intent.steps[i] || null, "Sender's documented intent (Microsoft Learn)", "intent", shapes)); }
+    art.appendChild(cols);
+    out.appendChild(art);
+  });
+  var s = "Literal RFC 7644: " + (r.literal.failure ? "HTTP 400" + (r.literal.failure.scimType ? " " + r.literal.failure.scimType : "") : "success") + ".";
+  if (r.intent) { s += " Sender's documented intent: " + (r.intent.failure ? "HTTP 400" : "success") + "."; }
+  $("status").textContent = s;
+}
+function run() {
+  var r;
+  try { r = SCIM.evaluate($("res").value, $("patch").value, { strictOp: $("strict").checked }); }
+  catch (e) { $("out").textContent = ""; $("out").appendChild(h("div", { class: "errbox" }, [h("p", { class: "what", text: "Internal error" }), h("p", { text: String(e && e.message) })])); $("status").textContent = "Internal error."; return; }
+  render(r);
+}
+$("run").addEventListener("click", run);
+$("strict").addEventListener("change", run);
+var timer = null;
+["res", "patch"].forEach(function (id) { $(id).addEventListener("input", function () { clearTimeout(timer); timer = setTimeout(run, 300); }); });
+
+/* self test */
+function runSelfTest() {
+  var res, body = document.querySelector("#st-table tbody");
+  body.textContent = "";
+  try { res = SCIM.selfTest(); }
+  catch (e) { $("st-summary").textContent = "The self test crashed: " + String(e && e.message); return; }
+  var checks = res.filter(function (x) { return !x.control; }), passed = checks.filter(function (x) { return x.pass; }).length;
+  var ctrl = res.filter(function (x) { return x.control; })[0], fz = res.filter(function (x) { return x.fuzz; })[0];
+  res.forEach(function (x) {
+    body.appendChild(h("tr", null, [h("td", { text: x.name }), h("td", null, [h("code", { text: x.want })]), h("td", null, [h("code", { text: x.got })]), h("td", { class: "res " + (x.pass ? "pass" : "fail"), text: x.control ? (x.pass ? "CAUGHT" : "NOT CAUGHT") : (x.pass ? "PASS" : "FAIL") })]));
+  });
+  $("st-summary").textContent = passed + " of " + checks.length + " checks passed" + (fz ? " (the precedence fuzz ran " + fz.fuzz.pass + " of " + fz.fuzz.total + " cases correctly)" : "") + ". Positive control: " + (ctrl && ctrl.pass ? "caught, so the suite is live." : "NOT caught, so these results cannot be trusted.");
+}
+$("selftest").addEventListener("click", runSelfTest);
+
+sel.value = "0";
+loadPreset(0);
+runSelfTest();
+})();
+</script>
+</body>
+</html>

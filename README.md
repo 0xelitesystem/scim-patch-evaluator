@@ -115,4 +115,4 @@ RFC 7643 and RFC 7644 carry this notice: "Copyright (c) 2015 IETF Trust and the 
 
 ## License
 
-MIT. Copyright (c) 2026 0xelitesystem.
+MIT. Copyright (c) 2026 RBL Industries LLC.
